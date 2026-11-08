@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import GearButton from './GearButton';
-import { user, accounts, decisions, creatures } from '../data/dummyData';
+import { accounts, decisions, creatures } from '../data/dummyData';
 import { fmt } from '../utils/finance';
 import { useAuth } from '../auth/useAuth';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-export default function AccountSettings({ onBack, onOpenMenu }) {
+export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
   const { user } = useAuth();
   const [filter, setFilter] = useState('All');
   const [prefs, setPrefs] = useState({ reminders: true, weekly: false });
@@ -112,7 +112,7 @@ export default function AccountSettings({ onBack, onOpenMenu }) {
           </section>
 
           <section className="settings-section">
-            <button type="button" className="action">
+            <button type="button" className="action" onClick={onSignOut}>
               Sign out
             </button>
           </section>

@@ -38,7 +38,7 @@ function AppShell() {
   return (
     <div className="app">
       {view === 'account' ? (
-        <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} />
+        <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} onSignOut={signOut} />
       ) : (
         <>
           <Dashboard onSelectCreature={setSelectedId} onOpenMenu={openMenu} />
