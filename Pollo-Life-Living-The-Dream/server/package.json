@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch --env-file=.env src/index.js",
+    "dev": "node --watch-path=./src --env-file=.env src/index.js",
     "start": "node --env-file=.env src/index.js",
     "test:db": "node --env-file=.env scripts/test-db.js",
     "test:nessie": "node --env-file=.env scripts/test-nessie.js",
