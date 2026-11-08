@@ -2,7 +2,10 @@
 // eventually, we will use real data used by nessie and the database 
 
 export const user = {
-  name: 'Sam',
+  name: 'Joe',
+  fullName: 'Joe Momma',
+  email: 'joe.momma@example.com',
+  memberSince: '2026-09-14',
 };
 
 // Account balances (liabilities are positive numbers; `kind` says which side)
@@ -11,6 +14,16 @@ export const accounts = [
   { id: 'savings', name: 'Savings', kind: 'asset', balance: 3200 },
   { id: 'card', name: 'Credit card', kind: 'debt', balance: 1860, limit: 3000 },
   { id: 'loan', name: 'Student loan', kind: 'debt', balance: 18400 },
+];
+
+// Past financial decisions on record (newest first). creatureId links to a village creature.
+export const decisions = [
+  { id: 'd1', date: '2026-11-01', type: 'Credit', title: 'Paid credit card above the minimum', amount: 200, creatureId: 'credit-card' },
+  { id: 'd2', date: '2026-10-20', type: 'Loan', title: 'Made student loan payment', amount: 310, creatureId: 'student-loan' },
+  { id: 'd3', date: '2026-10-15', type: 'Savings', title: 'Moved money to savings', amount: 150, creatureId: 'savings' },
+  { id: 'd4', date: '2026-10-05', type: 'Spending', title: 'Cancelled an unused subscription', amount: 12, creatureId: 'spending' },
+  { id: 'd5', date: '2026-09-20', type: 'Loan', title: 'Made student loan payment', amount: 310, creatureId: 'student-loan' },
+  { id: 'd6', date: '2026-09-14', type: 'Income', title: 'Added paycheck as an income source', amount: 2900, creatureId: 'income' },
 ];
 
 // Spending this month, by category
