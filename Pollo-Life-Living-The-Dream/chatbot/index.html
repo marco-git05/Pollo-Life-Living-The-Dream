@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nemotron Chatbot</title>
+</head>
+<body>
+  <h2>NVIDIA Nemotron Chat</h2>
+
+  <!-- this is the code for the text box-->
+  <div id="chat-box"></div>
+  <form id="chat-form">
+    <input type="text" id="user-input" placeholder="Ask Nemotron something..." required />
+    <button type="submit" id="send-btn">Send</button>
+  </form>
+
+  <!-- this is basically the backend-->
+  <script>
+    const chatBox = document.getElementById("chat-box");
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("user-input");
+    const btn = document.getElementById("send-btn");
+
+    // Store conversation history
+    const messages = [{ role: "system", content: "You are a helpful AI assistant." }];
+
+    function appendMessage(sender, text, className) {
+      const div = document.createElement("div");
+      div.className = `msg ${className}`;
+      div.textContent = `${sender}: ${text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage("You", text, "user");
+      messages.push({ role: "user", content: text });
+      input.value = "";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Server error");
+
+        appendMessage("Nemotron", data.reply, "bot");
+        messages.push({ role: "assistant", content: data.reply });
+      } catch (err) {
+        appendMessage("Error", err.message, "bot");
+      } finally {
+        btn.disabled = false;
+        input.focus();
+      }
+    });
+  </script>
+</body>
+</html>
