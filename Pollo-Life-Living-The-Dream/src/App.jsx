@@ -39,7 +39,7 @@ function AppShell() {
   return (
     <BankProvider>
       <CreaturesProvider>
-      <div className="app">
+      <div className={`app ${view === 'home' ? 'app-home' : ''}`}>
         {view === 'account' ? (
           <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} onSignOut={signOut} />
         ) : view === 'nfc' ? (

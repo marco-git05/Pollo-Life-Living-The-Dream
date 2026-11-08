@@ -7,6 +7,7 @@
   --umber: #4b3a2c;
   --umber-soft: #7a6552;
   --paper: #f8f5e1;
+  --sky: #62b8ec; /* matches the top edge of the village background */
   --good: #7f8a5a;
   --ok: #d1a95c;
   --warn: #bb8588;
@@ -45,13 +46,21 @@ button {
   flex-direction: column;
 }
 
+/* Home: the dashboard floats as a rounded card over the village sky. */
+.app-home {
+  background: var(--sky);
+}
+
 .dashboard {
-  flex: 0 0 60%;
+  flex: 0 0 calc(60% - 14px);
   min-height: 0;
   overflow-y: auto;
+  margin: 14px 14px 0;
   background: var(--cream);
   padding: 12px 18px 16px;
-  border-bottom: 4px solid var(--umber);
+  border: 4px solid var(--umber);
+  border-radius: 22px;
+  box-shadow: 4px 4px 0 rgba(75, 58, 44, 0.35);
 }
 
 .village {
