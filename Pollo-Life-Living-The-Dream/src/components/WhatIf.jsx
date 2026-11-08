@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { addMonths, fmt, monthYear, simulatePayoff } from '../utils/finance';
+import { api } from '../api/client';
 
 function Face({ mood }) {
   const mouth =
@@ -20,16 +22,40 @@ export default function WhatIf({ loan, extra, setExtra, monthlyNet, creatureName
   const interestSaved = base.interest - next.interest;
   const cashLeft = monthlyNet - extra;
   const payoffDate = monthYear(addMonths(new Date(), next.months));
+  const [message, setMessage] = useState('Your finance companion is calculating a personalized explanation…');
 
   const mood = cashLeft < 0 ? 'worried' : monthsSooner >= 12 ? 'happy' : 'neutral';
-  const message =
-    cashLeft < 0
-      ? `${creatureName} is stressed: that is more than your monthly leftover cash.`
-      : extra === 0
-        ? 'Slide to try an extra monthly payment.'
-        : monthsSooner >= 12
-          ? `${creatureName} is cheering! Debt-free ${Math.floor(monthsSooner / 12)}y ${monthsSooner % 12}m sooner.`
-          : `Nice. ${creatureName} gets ${monthsSooner} months closer to free.`;
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api('/chat', {
+        method: 'POST',
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: 'You explain debt payoff scenarios in one warm, concise sentence. Use only the supplied numbers. Do not give legal, tax, or investment advice.',
+            },
+            {
+              role: 'user',
+              content: JSON.stringify({ creatureName, extra, monthlyNet, monthsSooner, interestSaved, cashLeft, payoffDate }),
+            },
+          ],
+        },
+      })
+        .then((result) => {
+          if (!cancelled) setMessage(result.reply);
+        })
+        .catch(() => {
+          if (!cancelled) setMessage('The finance companion could not explain this scenario right now.');
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [cashLeft, creatureName, extra, interestSaved, monthlyNet, monthsSooner, payoffDate]);
 
   return (
     <div className="whatif">

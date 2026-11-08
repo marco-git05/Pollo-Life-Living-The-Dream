@@ -12,7 +12,7 @@ import ChatbotCard from './ChatbotCard';
 import GearButton from './GearButton';
 import ConnectBank from './ConnectBank';
 // Still sample data: tips (Nemotron). News falls back to samples if SerpApi is unavailable.
-import { news as sampleNews, tips } from '../data/dummyData';
+import { news as sampleNews } from '../data/dummyData';
 import { getTransactions } from '../api/bank';
 import { getNews } from '../api/news';
 import { useCreatures } from '../creatures/useCreatures';
@@ -160,8 +160,8 @@ function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
           )}
         </Card>
 
-        <Card title="Finance tips" area="tips" right={<Sample />}>
-          <TipsCard tips={tips} />
+        <Card title="Finance tips" area="tips">
+          <TipsCard data={data} spending={spending} priorities={priorities} />
         </Card>
 
         <ChatbotCard data={data} />
