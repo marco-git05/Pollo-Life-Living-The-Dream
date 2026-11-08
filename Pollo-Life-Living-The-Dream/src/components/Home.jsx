@@ -1,0 +1,89 @@
+import { useEffect, useMemo, useState } from 'react';
+import Dashboard from './Dashboard';
+import Village from '../village/Village';
+import CreatureCard from './CreatureCard';
+import AddCreatureModal from './AddCreatureModal';
+import EditCreatureModal from './EditCreatureModal';
+import { useCreatures } from '../creatures/useCreatures';
+import { toVillageCreature } from '../creatures/viewModel';
+
+// NFC tags open the app at /?scan=creature:student_loan. Read it once, then clean the URL.
+function takeScanParam() {
+  try {
+    const url = new URL(window.location.href);
+    const scan = url.searchParams.get('scan');
+    if (scan) {
+      url.searchParams.delete('scan');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+    return scan;
+  } catch {
+    return null;
+  }
+}
+
+export default function Home({ onOpenMenu }) {
+  const { creatures, entry, status, error, reload } = useCreatures();
+  const [selectedId, setSelectedId] = useState(null);
+  const [scanPayload, setScanPayload] = useState(takeScanParam);
+  const [adding, setAdding] = useState(Boolean(scanPayload));
+  const [editingId, setEditingId] = useState(null);
+
+  const village = useMemo(() => creatures.map((c) => toVillageCreature(c, entry(c.type))), [creatures, entry]);
+  const selected = creatures.find((c) => c._id === selectedId) ?? null;
+  const editing = creatures.find((c) => c._id === editingId) ?? null;
+
+  // A creature removed elsewhere shouldn't leave a dangling selection.
+  useEffect(() => {
+    if (selectedId && status === 'ready' && !selected) setSelectedId(null);
+  }, [selectedId, selected, status]);
+
+  const closeAdd = () => {
+    setAdding(false);
+    setScanPayload(null);
+  };
+
+  return (
+    <>
+      <Dashboard onSelectCreature={setSelectedId} onOpenMenu={onOpenMenu} />
+
+      {status === 'error' && (
+        <div className="notice warn creature-error" role="alert">
+          {error}{' '}
+          <button type="button" className="link-btn" onClick={reload}>
+            Try again
+          </button>
+        </div>
+      )}
+
+      <Village creatures={village} selectedId={selectedId} onSelect={setSelectedId} onAdd={() => setAdding(true)}>
+        {selected && (
+          <CreatureCard
+            key={selected._id}
+            creature={selected}
+            entry={entry(selected.type)}
+            onClose={() => setSelectedId(null)}
+            onEdit={setEditingId}
+          />
+        )}
+      </Village>
+
+      {adding && (
+        <AddCreatureModal
+          initialPayload={scanPayload}
+          onClose={closeAdd}
+          onOpenExisting={(id) => {
+            closeAdd();
+            setSelectedId(id);
+          }}
+          onCreated={(c) => {
+            closeAdd();
+            setSelectedId(c._id);
+          }}
+        />
+      )}
+
+      {editing && <EditCreatureModal creature={editing} onClose={() => setEditingId(null)} />}
+    </>
+  );
+}

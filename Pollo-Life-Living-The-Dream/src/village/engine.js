@@ -2,42 +2,84 @@ const UMBER = '#4b3a2c';
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-export function createWorld(creatures) {
+// ───────────── sprites ─────────────
+const sprites = new Map();
+
+function getSprite(url) {
+  if (!url) return null;
+  let s = sprites.get(url);
+  if (!s) {
+    const img = new Image();
+    s = { img, ok: false };
+    img.onload = () => {
+      s.ok = true;
+    };
+    img.onerror = () => {
+      s.ok = false; // missing file: keep drawing the shape
+    };
+    img.src = url;
+    sprites.set(url, s);
+  }
+  return s.ok ? s.img : null;
+}
+
+// ───────────── world ─────────────
+export function createWorld() {
   return {
     w: 0,
     h: 0,
-    placed: false,
+    groundTop: 0,
+    size: 44,
+    r: 12,
+    wanderTop: 0,
+    wanderBottom: 0,
     houses: [],
-    agents: creatures.map((c) => ({
-      id: c.id,
-      name: c.name,
-      shape: c.shape,
-      color: c.color,
-      mood: c.mood,
-      x: 0,
-      y: 0,
-      tx: 0,
-      ty: 0,
-      dir: 1,
-      state: 'idle', // idle | walk | goHome | inside
-      timer: rand(0.2, 2),
-      speed: rand(24, 38),
-      phase: rand(0, 6.28),
-    })),
+    agents: [],
   };
+}
+
+// Add / remove / update agents to match the creature list WITHOUT resetting the ones that already exist.
+export function syncWorld(world, creatures) {
+  const prev = new Map(world.agents.map((a) => [a.id, a]));
+  world.agents = creatures.map((c) => {
+    const a =
+      prev.get(c.id) ?? {
+        id: c.id,
+        x: 0,
+        y: 0,
+        tx: 0,
+        ty: 0,
+        dir: 1,
+        state: 'idle', // idle | walk | goHome | inside
+        timer: rand(0.2, 2),
+        speed: rand(24, 38),
+        phase: rand(0, 6.28),
+        placed: false,
+        spawnX: c.positionX,
+      };
+    a.name = c.name;
+    a.shape = c.shape;
+    a.color = c.color;
+    a.sprite = c.sprite;
+    a.mood = c.mood;
+    return a;
+  });
+  if (world.w) layoutWorld(world, world.w, world.h);
 }
 
 export function layoutWorld(world, w, h) {
   world.w = w;
   world.h = h;
   world.groundTop = h * 0.4;
-  world.size = clamp(h * 0.17, 38, 58); // house width
-  world.r = clamp(h * 0.06, 11, 16); // creature radius
+  world.r = clamp(h * 0.06, 11, 16);
 
   const n = world.agents.length;
   const margin = Math.min(70, w * 0.07);
   const right = w - margin - Math.min(110, w * 0.12); // leave room for the pond
-  const span = (right - margin) / n;
+  const span = n ? (right - margin) / n : 0;
+
+  world.size = clamp(h * 0.17, 38, 58); // house width
+  if (n) world.size = Math.min(world.size, Math.max(30, span * 0.9));
 
   world.houses = world.agents.map((a, i) => ({
     id: a.id,
@@ -47,25 +89,25 @@ export function layoutWorld(world, w, h) {
     y: world.groundTop + world.size * 0.85 + (i % 2) * 10, // baseline
   }));
 
-  world.wanderTop = Math.max(...world.houses.map((h2) => h2.y)) + world.r * 2 + 6;
-  world.wanderBottom = h - world.r - 8;
-  if (world.wanderBottom < world.wanderTop + 10) world.wanderBottom = world.wanderTop + 10;
+  const lowestHouse = n ? Math.max(...world.houses.map((hs) => hs.y)) : world.groundTop + world.size;
+  world.wanderTop = lowestHouse + world.r * 2 + 6;
+  world.wanderBottom = Math.max(h - world.r - 8, world.wanderTop + 10);
 
   world.agents.forEach((a, i) => {
-    if (!world.placed) {
-      a.x = world.houses[i].x + rand(-30, 30);
+    if (!a.placed) {
+      a.x = a.spawnX != null ? clamp(a.spawnX * w, 20, w - 20) : world.houses[i].x + rand(-30, 30);
       a.y = rand(world.wanderTop, world.wanderBottom);
+      a.placed = true;
     } else {
       a.x = clamp(a.x, 16, w - 16);
       a.y = clamp(a.y, world.wanderTop, world.wanderBottom);
     }
   });
-  world.placed = true;
 }
 
 function door(world, id) {
   const hs = world.houses.find((h) => h.id === id);
-  return { x: hs.x, y: hs.y + 4 };
+  return hs ? { x: hs.x, y: hs.y + 4 } : { x: world.w / 2, y: world.wanderTop };
 }
 
 export function updateWorld(world, dt, selectedId) {
@@ -136,8 +178,8 @@ export function hitTest(world, px, py) {
   let bestD = Infinity;
   for (const a of world.agents) {
     if (a.state === 'inside') continue;
-    const d = Math.hypot(px - a.x, py - (a.y - world.r));
-    if (d < world.r + 8 && d < bestD) {
+    const d = Math.hypot(px - a.x, py - (a.y - world.r * 1.2));
+    if (d < world.r * 1.4 + 6 && d < bestD) {
       best = a.id;
       bestD = d;
     }
@@ -283,6 +325,16 @@ function drawBody(ctx, shape, cx, cy, r, color) {
       ctx.lineTo(cx - r * 1.05, cy);
       ctx.closePath();
       break;
+    case 'hexagon':
+      for (let i = 0; i < 6; i++) {
+        const ang = (Math.PI / 3) * i;
+        const px = cx + Math.cos(ang) * r * 1.1;
+        const py = cy + Math.sin(ang) * r * 1.1;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
     case 'pill':
       rr(ctx, cx - r * 0.85, cy - r * 1.15, r * 1.7, r * 2.3, r * 0.85);
       break;
@@ -293,12 +345,40 @@ function drawBody(ctx, shape, cx, cy, r, color) {
   ctx.stroke();
 }
 
+function drawFace(ctx, a, cx, cy, r, look) {
+  ctx.fillStyle = UMBER;
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.36 + look, cy - r * 0.12, 1.8, 0, Math.PI * 2);
+  ctx.arc(cx + r * 0.36 + look, cy - r * 0.12, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = UMBER;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  if (a.mood === 'happy') {
+    ctx.arc(cx + look, cy + r * 0.1, r * 0.3, 0.15 * Math.PI, 0.85 * Math.PI);
+  } else if (a.mood === 'worried' || a.mood === 'sad') {
+    ctx.arc(cx + look, cy + r * 0.5, r * 0.28, 1.15 * Math.PI, 1.85 * Math.PI);
+  } else {
+    ctx.moveTo(cx - r * 0.25 + look, cy + r * 0.3);
+    ctx.lineTo(cx + r * 0.25 + look, cy + r * 0.3);
+  }
+  ctx.stroke();
+
+  if (a.mood === 'sad') {
+    ctx.fillStyle = '#9db5a5';
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.5 + look, cy + r * 0.15, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawAgent(ctx, world, a, { selected, hovered, t }) {
   const r = world.r;
   const walking = a.state === 'walk' || a.state === 'goHome';
   const bob = walking ? Math.abs(Math.sin(a.phase)) * 3 : Math.sin(t * 2 + a.phase) * 0.8;
   const cx = a.x;
-  const cy = a.y - r - bob;
+  const sprite = getSprite(a.sprite);
 
   // shadow
   ctx.fillStyle = 'rgba(75,58,44,0.25)';
@@ -314,40 +394,39 @@ function drawAgent(ctx, world, a, { selected, hovered, t }) {
     ctx.stroke();
   }
 
-  drawBody(ctx, a.shape, cx, cy, r, a.color);
-
-  // eyes (look in walking direction)
-  const look = selected ? 0 : a.dir * 1.5;
-  ctx.fillStyle = UMBER;
-  ctx.beginPath();
-  ctx.arc(cx - r * 0.36 + look, cy - r * 0.12, 1.8, 0, Math.PI * 2);
-  ctx.arc(cx + r * 0.36 + look, cy - r * 0.12, 1.8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // mouth by mood
-  ctx.strokeStyle = UMBER;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  if (a.mood === 'happy') ctx.arc(cx + look, cy + r * 0.1, r * 0.3, 0.15 * Math.PI, 0.85 * Math.PI);
-  else if (a.mood === 'worried') ctx.arc(cx + look, cy + r * 0.5, r * 0.28, 1.15 * Math.PI, 1.85 * Math.PI);
-  else {
-    ctx.moveTo(cx - r * 0.25 + look, cy + r * 0.3);
-    ctx.lineTo(cx + r * 0.25 + look, cy + r * 0.3);
+  let headY;
+  if (sprite) {
+    const hh = r * 3.2;
+    const ww = hh * (sprite.naturalWidth / sprite.naturalHeight);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false; // keep pixel art crisp
+    if (a.dir < 0) {
+      ctx.translate(cx, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-cx, 0);
+    }
+    ctx.drawImage(sprite, cx - ww / 2, a.y - hh - bob, ww, hh);
+    ctx.restore();
+    headY = a.y - hh - bob;
+  } else {
+    const cy = a.y - r - bob;
+    drawBody(ctx, a.shape, cx, cy, r, a.color);
+    drawFace(ctx, a, cx, cy, r, selected ? 0 : a.dir * 1.5);
+    headY = cy - r * 1.3;
   }
-  ctx.stroke();
 
-  // worry marker
-  if (a.mood === 'worried') {
+  const worried = a.mood === 'worried' || a.mood === 'sad';
+  if (worried) {
     ctx.fillStyle = '#bb8588';
     ctx.font = 'bold 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('!', cx, cy - r * 1.3 - Math.abs(Math.sin(t * 3 + a.phase)) * 3);
+    ctx.fillText('!', cx, headY - 2 - Math.abs(Math.sin(t * 3 + a.phase)) * 3);
   }
 
   if (selected || hovered) {
     ctx.font = '600 11px system-ui, sans-serif';
     const tw = ctx.measureText(a.name).width + 12;
-    const ty = cy - r * 1.3 - 22;
+    const ty = headY - 22 - (worried ? 8 : 0);
     ctx.fillStyle = '#f8f5e1';
     ctx.strokeStyle = UMBER;
     ctx.lineWidth = 1.5;

@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import GearButton from './GearButton';
-import { accounts, decisions, creatures } from '../data/dummyData';
+import { decisions, creatures } from '../data/dummyData';
+import { snapshotToDashboard } from '../data/bankAdapter';
 import { fmt } from '../utils/finance';
 import { useAuth } from '../auth/useAuth';
+import { useBank } from '../bank/useBank';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
   const { user } = useAuth();
+  const { snapshot } = useBank();
+  const accounts = useMemo(() => (snapshot ? snapshotToDashboard(snapshot).accounts : []), [snapshot]);
+
   const [filter, setFilter] = useState('All');
   const [prefs, setPrefs] = useState({ reminders: true, weekly: false });
 
+  // Still dummy: decisions on record (the backend's transactions collection can feed this next).
   const types = ['All', ...new Set(decisions.map((d) => d.type))];
   const shown = filter === 'All' ? decisions : decisions.filter((d) => d.type === filter);
   const creatureName = (id) => creatures.find((c) => c.id === id)?.name;
@@ -37,30 +43,34 @@ export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
             <dl className="kv">
               <dt>Name</dt>
               <dd>{user.fullName}</dd>
-              <dt>Email</dt>
-              <dd>{user.email}</dd>
+              <dt>Username</dt>
+              <dd>{user.username ?? '—'}</dd>
               <dt>Member since</dt>
-              <dd>{longDate(user.memberSince)}</dd>
+              <dd>{user.memberSince ? longDate(user.memberSince) : '—'}</dd>
             </dl>
           </section>
 
           <section className="settings-section">
             <h2>Linked accounts</h2>
-            <ul className="acct-list">
-              {accounts.map((a) => (
-                <li key={a.id}>
-                  <div>
-                    <strong>{a.name}</strong>
-                    <span className="meta">
-                      {a.institution} · •••• {a.mask}
+            {accounts.length ? (
+              <ul className="acct-list">
+                {accounts.map((a) => (
+                  <li key={a.id}>
+                    <div>
+                      <strong>{a.name}</strong>
+                      <span className="meta">
+                        {a.institution} · {a.type}
+                      </span>
+                    </div>
+                    <span className={`acct-balance ${a.kind === 'debt' ? 'neg' : 'pos'}`}>
+                      {fmt(a.kind === 'debt' ? -a.balance : a.balance, 2)}
                     </span>
-                  </div>
-                  <span className={`acct-balance ${a.kind === 'debt' ? 'neg' : 'pos'}`}>
-                    {fmt(a.kind === 'debt' ? -a.balance : a.balance)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="meta">No bank connected yet. Connect one from the dashboard.</p>
+            )}
           </section>
 
           <section className="settings-section">

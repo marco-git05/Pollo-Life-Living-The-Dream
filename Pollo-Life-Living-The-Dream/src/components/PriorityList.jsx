@@ -5,6 +5,7 @@ const ORDER = { high: 0, med: 1, low: 2 };
 
 function dueLabel(days) {
   if (days == null) return 'Anytime';
+  if (days < 0) return `Overdue by ${-days} day${days === -1 ? '' : 's'}`;
   if (days === 0) return 'Due today';
   return `Due in ${days} day${days === 1 ? '' : 's'}`;
 }
@@ -25,7 +26,7 @@ export default function PriorityList({ items, onSelectCreature }) {
             onChange={() => setDone((d) => ({ ...d, [p.id]: !d[p.id] }))}
             aria-label={`Mark ${p.title} done`}
           />
-          <button type="button" className="priority-main" onClick={() => onSelectCreature?.(p.creatureId)}>
+          <button type="button" className="priority-main" onClick={() => p.creatureId && onSelectCreature?.(p.creatureId)}>
             <span className="priority-title">{p.title}</span>
             <span className="priority-meta">
               <span className={`dot ${p.urgency}`} />

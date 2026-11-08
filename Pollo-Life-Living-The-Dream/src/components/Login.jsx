@@ -3,14 +3,15 @@ import { useAuth } from '../auth/useAuth';
 
 export default function Login() {
   const { login, register, loginDemo } = useAuth();
-  const [mode, setMode] = useState('signin');
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [mode, setMode] = useState('signin'); // 'signin' | 'register'
+  const [form, setForm] = useState({ displayName: '', username: '', password: '', ageGroup: 'young_adult' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const isRegister = mode === 'register';
 
   const setField = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  // On success the user becomes non-null and this page unmounts, so only reset `busy` on failure.
   const run = async (action) => {
     setError('');
     setBusy(true);
@@ -35,8 +36,7 @@ export default function Login() {
   return (
     <main className="login-page">
       <div className="login-card">
-
-        <h1>Poyo Life: Living the Dream</h1>
+        <h1>Pollo Life: Living the Dream</h1>
         <p className="login-sub">See your whole financial picture and your next move.</p>
 
         <div className="auth-tabs" role="group" aria-label="Sign in or create account">
@@ -51,25 +51,38 @@ export default function Login() {
         <form onSubmit={submit} noValidate>
           {isRegister && (
             <label className="field">
-              <span>Name</span>
+              <span>Display name (optional)</span>
               <input
                 type="text"
                 autoComplete="name"
-                value={form.name}
-                onChange={setField('name')}
+                value={form.displayName}
+                onChange={setField('displayName')}
                 placeholder="Sam Rivera"
               />
             </label>
           )}
 
+          {isRegister && (
+            <label className="field">
+              <span>Age group</span>
+              <select value={form.ageGroup} onChange={setField('ageGroup')}>
+                <option value="kid">Kid</option>
+                <option value="teen">Teen</option>
+                <option value="young_adult">Young adult</option>
+                <option value="adult">Adult</option>
+              </select>
+            </label>
+          )}
+
           <label className="field">
-            <span>Email</span>
+            <span>Username</span>
             <input
-              type="email"
-              autoComplete="email"
-              value={form.email}
-              onChange={setField('email')}
-              placeholder="you@example.com"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              value={form.username}
+              onChange={setField('username')}
+              placeholder="your_username"
             />
           </label>
 
@@ -80,7 +93,7 @@ export default function Login() {
               autoComplete={isRegister ? 'new-password' : 'current-password'}
               value={form.password}
               onChange={setField('password')}
-              placeholder={isRegister ? 'At least 6 characters' : 'Your password'}
+              placeholder="Your password"
             />
           </label>
 

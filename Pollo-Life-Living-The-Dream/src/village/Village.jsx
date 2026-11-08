@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { createWorld, layoutWorld, updateWorld, drawWorld, hitTest } from './engine';
+import { createWorld, layoutWorld, updateWorld, drawWorld, hitTest, syncWorld } from './engine';
 
-const MOOD_LABEL = { happy: 'Thriving', neutral: 'Steady', worried: 'Needs attention' };
-
-export default function Village({ creatures, selectedId, onSelect }) {
+// `creatures` are village view models (see creatures/viewModel.js): { id, name, shape, color, sprite, mood }.
+// `children` is rendered on top of the village (the selected-creature card).
+export default function Village({ creatures, selectedId, onSelect, onAdd, children }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const worldRef = useRef(null);
@@ -14,11 +14,12 @@ export default function Village({ creatures, selectedId, onSelect }) {
     selectedRef.current = selectedId;
   }, [selectedId]);
 
+  // One world for the lifetime of the component.
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const world = createWorld(creatures);
+    const world = createWorld();
     worldRef.current = world;
 
     const resize = () => {
@@ -52,6 +53,11 @@ export default function Village({ creatures, selectedId, onSelect }) {
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
+  }, []);
+
+  // Creatures added / removed / changed: update the world without resetting everyone's position.
+  useEffect(() => {
+    if (worldRef.current) syncWorld(worldRef.current, creatures);
   }, [creatures]);
 
   const pointer = (e) => {
@@ -69,8 +75,6 @@ export default function Village({ creatures, selectedId, onSelect }) {
     const id = pointer(e);
     onSelect(id && id !== selectedId ? id : null);
   };
-
-  const selected = creatures.find((c) => c.id === selectedId);
 
   return (
     <section className="village" ref={wrapRef} aria-label="Village">
@@ -95,27 +99,16 @@ export default function Village({ creatures, selectedId, onSelect }) {
             {c.name}
           </button>
         ))}
+        <button type="button" className="chip add" onClick={onAdd}>
+          + Add creature
+        </button>
       </nav>
 
-      {selected && (
-        <aside className="creature-card">
-          <button type="button" className="close" onClick={() => onSelect(null)} aria-label="Close">
-            ×
-          </button>
-          <div className="cc-head">
-            <span className={`chip-shape big ${selected.shape}`} style={{ background: selected.color }} />
-            <div>
-              <strong>{selected.name}</strong>
-              <span className="cc-kind">{selected.kind}</span>
-            </div>
-          </div>
-          <div className="cc-amount">{selected.amount}</div>
-          <div className={`badge ${selected.mood === 'happy' ? 'good' : selected.mood === 'worried' ? 'warn' : 'ok'}`}>
-            {MOOD_LABEL[selected.mood]}
-          </div>
-          <p>{selected.note}</p>
-        </aside>
+      {creatures.length === 0 && (
+        <p className="village-empty">Your village is empty. Add a creature or scan a card to move one in.</p>
       )}
+
+      {children}
     </section>
   );
 }

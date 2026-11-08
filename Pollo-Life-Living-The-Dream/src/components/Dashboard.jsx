@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Card from './Card';
 import SummaryStrip from './SummaryStrip';
 import DonutChart from './DonutChart';
@@ -9,30 +9,70 @@ import NewsCard from './NewsCard';
 import PriorityList from './PriorityList';
 import TipsCard from './TipsCard';
 import GearButton from './GearButton';
-import {
-  user,
-  accounts,
-  spending,
-  profile,
-  forecastSetup,
-  studentLoan,
-  news,
-  priorities,
-  tips,
-  creatures,
-} from '../data/dummyData';
+import ConnectBank from './ConnectBank';
+// Still sample data: news (SerpAPI) and tips (Nemotron). Everything else is live.
+import { news, tips } from '../data/dummyData';
+import { getTransactions } from '../api/bank';
+import { useCreatures } from '../creatures/useCreatures';
+import { typeLabel } from '../creatures/viewModel';
+import { snapshotToDashboard } from '../data/bankAdapter';
 import { buildForecast, computeHealth } from '../utils/finance';
 import { useAuth } from '../auth/useAuth';
+import { useBank } from '../bank/useBank';
 
-export default function Dashboard({ onSelectCreature, onOpenMenu }){
-  const { user } = useAuth();
+const Sample = () => <span className="badge ok">Sample</span>;
+
+// Spending this month by category, from the user's recorded transactions (purchases and bill payments).
+function useSpending(syncedAt) {
+  const [spending, setSpending] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    getTransactions({ limit: 200 })
+      .then((list) => {
+        if (cancelled) return;
+        const start = new Date();
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        const totals = {};
+        for (const t of Array.isArray(list) ? list : []) {
+          if (!['purchase', 'bill_payment'].includes(t.kind)) continue;
+          if (new Date(t.date) < start) continue;
+          const name = typeLabel(t.category || 'other');
+          totals[name] = (totals[name] ?? 0) + (Number(t.amount) || 0);
+        }
+        setSpending(
+          Object.entries(totals)
+            .map(([name, amount]) => ({ name, amount }))
+            .sort((a, b) => b.amount - a.amount),
+        );
+      })
+      .catch(() => !cancelled && setSpending([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [syncedAt]);
+  return spending;
+}
+
+// Loan terms for the what-if simulator come from the student loan creature.
+function loanFrom(creature) {
+  const d = creature?.data;
+  if (!d) return null;
+  const balance = Number(d.balance);
+  const apr = Number(d.apr ?? d.interestRate ?? d.rate);
+  const payment = Number(d.minPayment ?? d.payment);
+  if (!(balance > 0) || !(payment > 0) || !Number.isFinite(apr)) return null;
+  return { balance, apr, payment };
+}
+
+function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
   const [extra, setExtra] = useState(0);
+  const { accounts, profile, priorities, forecastSetup, monthlyNet } = data;
 
-  const monthlyNet = profile.monthlyIncome - profile.monthlyExpenses - profile.monthlyDebtPayments;
-  const health = useMemo(() => computeHealth(profile), []);
+  const health = useMemo(() => computeHealth(profile), [profile]);
   const forecast = useMemo(
     () => buildForecast({ startBalance: forecastSetup.startBalance, monthlyNet, events: forecastSetup.events }),
-    [monthlyNet],
+    [forecastSetup, monthlyNet],
   );
   const scenario = useMemo(
     () =>
@@ -44,37 +84,37 @@ export default function Dashboard({ onSelectCreature, onOpenMenu }){
             extra,
           })
         : null,
-    [extra, monthlyNet],
+    [extra, forecastSetup, monthlyNet],
   );
-  const loanCreature = creatures.find((c) => c.id === 'student-loan');
+  const loan = loanFrom(loanCreature);
 
   return (
-    <main className="dashboard">
-      <header className="topbar">
-        <div>
-          <h1>Welcome, {user.name}</h1>
-          <p className="sub">Your whole financial picture in one place. Demo data.</p>
-        </div>
-        <GearButton onClick={onOpenMenu} />
-      </header>
-
+    <>
       <SummaryStrip accounts={accounts} monthlyNet={monthlyNet} />
 
       <div className="grid">
         <Card title="Spend analyzer" area="spend">
-          <DonutChart data={spending} />
+          {spending.length ? (
+            <DonutChart data={spending} />
+          ) : (
+            <p className="meta">No spending recorded this month yet. Feed a creature to log some.</p>
+          )}
         </Card>
 
         <Card title="Health check" area="health">
           <HealthIndicators health={health} />
         </Card>
 
-        <Card title="News recently" area="news">
+        <Card title="News recently" area="news" right={<Sample />}>
           <NewsCard items={news} />
         </Card>
 
         <Card title="Priority list" area="priority">
-          <PriorityList items={priorities} onSelectCreature={onSelectCreature} />
+          {priorities.length ? (
+            <PriorityList items={priorities} onSelectCreature={onSelectCreature} />
+          ) : (
+            <p className="meta">No upcoming bills. Nice.</p>
+          )}
         </Card>
 
         <Card title="Balance forecast (6 months)" area="forecast">
@@ -87,19 +127,83 @@ export default function Dashboard({ onSelectCreature, onOpenMenu }){
         </Card>
 
         <Card title="What-if simulator" area="whatif">
-          <WhatIf
-            loan={studentLoan}
-            extra={extra}
-            setExtra={setExtra}
-            monthlyNet={monthlyNet}
-            creatureName={loanCreature?.name ?? 'Your loan'}
-          />
+          {loan ? (
+            <WhatIf
+              loan={loan}
+              extra={extra}
+              setExtra={setExtra}
+              monthlyNet={monthlyNet}
+              creatureName={loanCreature.nickname || 'Your loan'}
+            />
+          ) : (
+            <p className="meta">
+              Add a student loan creature (with balance, APR and payment) to try extra payments.
+            </p>
+          )}
         </Card>
 
-        <Card title="Finance tips" area="tips">
+        <Card title="Finance tips" area="tips" right={<Sample />}>
           <TipsCard tips={tips} />
         </Card>
       </div>
+    </>
+  );
+}
+
+export default function Dashboard({ onSelectCreature, onOpenMenu }) {
+  const { user } = useAuth();
+  const { snapshot, status, error, stale, syncing, refresh, connect } = useBank();
+  const { creatures } = useCreatures();
+  const data = useMemo(() => (snapshot ? snapshotToDashboard(snapshot, creatures) : null), [snapshot, creatures]);
+  const spending = useSpending(snapshot?.syncedAt);
+  const loanCreature = creatures.find((c) => c.type === 'student_loan');
+
+  let body;
+  if (status === 'loading') {
+    body = <p className="notice">Loading your bank data…</p>;
+  } else if (status === 'error') {
+    body = (
+      <div className="notice warn" role="alert">
+        {error}{' '}
+        <button type="button" className="link-btn" onClick={refresh}>
+          Try again
+        </button>
+      </div>
+    );
+  } else if (!snapshot) {
+    body = <ConnectBank onConnect={connect} />;
+  } else {
+    body = <DashboardBody data={data} spending={spending} loanCreature={loanCreature} onSelectCreature={onSelectCreature} />;
+  }
+
+  const syncedAt = snapshot?.syncedAt
+    ? new Date(snapshot.syncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : null;
+
+  return (
+    <main className="dashboard">
+      <header className="topbar">
+        <div>
+          <h1>Welcome, {user.name}</h1>
+          <p className="sub sync-row">
+            {syncedAt ? (
+              <>
+                Bank synced at {syncedAt}
+                {stale && ' (offline copy, Nessie unreachable)'}
+                <button type="button" className="link-btn" onClick={refresh} disabled={syncing}>
+                  {syncing ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </>
+            ) : (
+              'Your whole financial picture in one place.'
+            )}
+          </p>
+          {snapshot && error && <p className="sub warn-text">Could not refresh: {error}</p>}
+        </div>
+        <GearButton onClick={onOpenMenu} />
+      </header>
+
+      {body}
     </main>
   );
 }

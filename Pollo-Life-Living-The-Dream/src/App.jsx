@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import Dashboard from './components/Dashboard';
-import Village from './village/Village';
-import SideMenu from './components/SideMenu';
-import AccountSettings from './components/AccountSettings';
 import AuthProvider from './auth/AuthProvider';
 import { useAuth } from './auth/useAuth';
+import BankProvider from './bank/BankProvider';
 import Login from './components/Login';
-import { creatures } from './data/dummyData';
+import Home from './components/Home';
+import AccountSettings from './components/AccountSettings';
+import SideMenu from './components/SideMenu';
+import CreaturesProvider from './creatures/CreaturesProvider';
+import './live-data.css';
 
 function AppShell() {
   const { user, logout } = useAuth();
-  const [view, setView] = useState('home'); 
+  const [view, setView] = useState('home'); // 'home' | 'account'
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
 
   const openMenu = () => setMenuOpen(true);
   const closeMenu = () => setMenuOpen(false);
@@ -24,7 +24,6 @@ function AppShell() {
     logout();
     setView('home');
     setMenuOpen(false);
-    setSelectedId(null);
   };
 
   if (!user) {
@@ -35,19 +34,21 @@ function AppShell() {
     );
   }
 
+  // BankProvider only exists while signed in, so signing out clears the bank data too.
   return (
-    <div className="app">
-      {view === 'account' ? (
-        <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} onSignOut={signOut} />
-      ) : (
-        <>
-          <Dashboard onSelectCreature={setSelectedId} onOpenMenu={openMenu} />
-          <Village creatures={creatures} selectedId={selectedId} onSelect={setSelectedId} />
-        </>
-      )}
+    <BankProvider>
+      <CreaturesProvider>
+      <div className="app">
+        {view === 'account' ? (
+          <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} onSignOut={signOut} />
+        ) : (
+          <Home onOpenMenu={openMenu} />
+        )}
 
-      <SideMenu open={menuOpen} view={view} onClose={closeMenu} onNavigate={navigate} />
-    </div>
+        <SideMenu open={menuOpen} view={view} onClose={closeMenu} onNavigate={navigate} />
+      </div>
+      </CreaturesProvider>
+    </BankProvider>
   );
 }
 

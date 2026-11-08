@@ -1,0 +1,118 @@
+/* ───────── live bank states ───────── */
+.sync-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--umber);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.notice {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 2px solid var(--umber);
+  border-radius: 10px;
+}
+
+.notice.warn {
+  background: #f3d9da;
+  border-color: var(--rose);
+  color: #7a3438;
+}
+
+.empty-state {
+  max-width: 440px;
+  margin: 32px auto;
+  padding: 22px 26px;
+  text-align: center;
+  background: var(--paper);
+  border: 2px solid var(--umber);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--umber);
+}
+
+.empty-state h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-head);
+  font-size: 22px;
+}
+
+.empty-state p {
+  margin: 0 0 14px;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ───────── creatures: village overlay, modal, forms ───────── */
+.chip.add { background: var(--vanilla, #d6ce93); }
+.chip-shape.hexagon { clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); border: 0; }
+.village-empty {
+  position: absolute; left: 50%; top: 52%; transform: translateX(-50%);
+  margin: 0; padding: 8px 14px; max-width: 80%; text-align: center;
+  background: var(--paper); border: 2px solid var(--umber); border-radius: 10px; font-size: 13px;
+}
+.creature-error { margin: 0 16px; }
+
+.creature-card { max-height: calc(100% - 20px); overflow-y: auto; width: 250px; }
+.cc-note { font-size: 12px; }
+.cc-fields { margin: 8px 0; display: grid; gap: 2px; font-size: 12px; }
+.cc-fields div { display: flex; justify-content: space-between; gap: 8px; }
+.cc-fields dt { color: var(--umber-soft); }
+.cc-fields dd { margin: 0; font-weight: 600; text-align: right; }
+.cc-actions { display: flex; gap: 8px; margin-top: 8px; }
+.cc-recent { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
+.cc-recent li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.action.danger { background: var(--rose); }
+.feed { display: grid; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 2px dashed var(--umber-soft, #8a7260); font-size: 12px; }
+.feed-row { display: flex; gap: 6px; }
+.feed input { width: 100%; min-width: 0; padding: 5px 8px; border: 2px solid var(--umber); border-radius: 8px; background: #fffdf0; font: inherit; }
+.feed-ok { color: #4f6b3a; font-weight: 600; }
+.warn-text { color: #8a3a40; }
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+  background: rgba(75, 58, 44, 0.5);
+}
+.modal {
+  width: min(520px, 100%); max-height: 90vh; overflow-y: auto; padding: 16px 20px 20px;
+  background: var(--paper); border: 2px solid var(--umber); border-radius: 16px; box-shadow: 4px 4px 0 var(--umber);
+}
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.modal-head h2 { margin: 0; font-family: var(--font-head); font-size: 22px; }
+.close-btn { background: none; border: 0; font-size: 26px; line-height: 1; cursor: pointer; }
+.modal-intro { margin: 0 0 12px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.card-option {
+  display: grid; gap: 4px; justify-items: start; padding: 10px; text-align: left; cursor: pointer;
+  background: #fffdf0; border: 2px solid var(--umber); border-radius: 12px; box-shadow: 2px 2px 0 var(--umber); font: inherit;
+}
+.card-option:hover:not(:disabled) { background: var(--bronze); }
+.swatch.big { width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--umber); display: inline-block; flex: none; }
+.creature-form { display: grid; gap: 10px; }
+.creature-form .field select,
+.field select {
+  width: 100%; padding: 8px 10px; border: 2px solid var(--umber); border-radius: 10px; background: #fffdf0; font: inherit;
+}
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.exists p { margin: 0 0 12px; }
