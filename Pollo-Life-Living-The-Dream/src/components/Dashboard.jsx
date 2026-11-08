@@ -8,6 +8,7 @@ import WhatIf from './WhatIf';
 import NewsCard from './NewsCard';
 import PriorityList from './PriorityList';
 import TipsCard from './TipsCard';
+import GearButton from './GearButton';
 import {
   user,
   accounts,
@@ -22,8 +23,8 @@ import {
 } from '../data/dummyData';
 import { buildForecast, computeHealth } from '../utils/finance';
 
-export default function Dashboard({ onSelectCreature }){
-    const [extra, setExtra] = useState(0);
+export default function Dashboard({ onSelectCreature, onOpenMenu }){
+  const [extra, setExtra] = useState(0);
 
   const monthlyNet = profile.monthlyIncome - profile.monthlyExpenses - profile.monthlyDebtPayments;
   const health = useMemo(() => computeHealth(profile), []);
@@ -52,12 +53,7 @@ export default function Dashboard({ onSelectCreature }){
           <h1>Welcome, {user.name}</h1>
           <p className="sub">Your whole financial picture in one place. Demo data.</p>
         </div>
-        <button type="button" className="icon-btn" aria-label="Settings">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
-          </svg>
-        </button>
+        <GearButton onClick={onOpenMenu} />
       </header>
 
       <SummaryStrip accounts={accounts} monthlyNet={monthlyNet} />
