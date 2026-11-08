@@ -1,1 +1,12 @@
+# Secrets: never commit real API keys
+.env
+.env.*
+!.env.example
 
+# Dependencies & builds (all folders)
+node_modules/
+dist/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
