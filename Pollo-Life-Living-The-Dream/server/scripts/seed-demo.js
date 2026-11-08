@@ -38,10 +38,9 @@ try {
   }
 
   const creatures = await Creature.insertMany([
-    { owner: user._id, type: 'student_loan', nickname: 'Loanie', data: { balance: 18500, interestRate: 5.5, minPayment: 210, dueDay: 15, loanType: 'Federal unsubsidized' }, position: { x: 0.2 } },
-    { owner: user._id, type: 'credit_card', nickname: 'Swipe', data: { balance: 640, limit: 1500, apr: 24.99, minPayment: 35, dueDay: 22 }, position: { x: 0.45 } },
-    { owner: user._id, type: 'income', nickname: 'Pip', data: { amount: 320, frequency: 'Every 2 weeks', source: 'Part-time job' }, position: { x: 0.65 } },
-    { owner: user._id, type: 'savings_goal', nickname: 'Acorn', data: { goalName: 'New laptop', target: 900, saved: 300 }, position: { x: 0.85 } },
+    { owner: user._id, type: 'credit_card', nickname: 'Swipe', data: { balance: 640, limit: 1500, apr: 24.99, minPayment: 35, dueDay: 22 }, position: { x: 0.2 } },
+    { owner: user._id, type: 'income', nickname: 'Pip', data: { amount: 320, frequency: 'Every 2 weeks', source: 'Part-time job' }, position: { x: 0.5 } },
+    { owner: user._id, type: 'subscription', nickname: 'Loop', data: { service: 'Streaming', cost: 12.99, dueDay: 5 }, position: { x: 0.8 } },
   ]);
   for (const c of creatures) await syncCreatureBill(user, c);
   console.log(`✔ ${creatures.length} creatures added`);

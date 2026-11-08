@@ -1,90 +1,82 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
-import CreatureForm from './CreatureForm';
+import { IdField, Mrz, Portrait } from './creatureFields';
+import { collectData, initValues, splitGoal } from '../creatures/fields';
 import { scanCard } from '../api/creatures';
 import { useCreatures } from '../creatures/useCreatures';
+import { typeLabel } from '../creatures/viewModel';
 
-// Flow: pick a card ("scan") -> POST /api/creatures/scan -> existing creature? offer to open it : show the form.
-// `initialPayload` is a card payload from an NFC tag URL (?scan=creature:student_loan); it skips the pick step.
+// "New character detected": an empty ID card. The portrait is a silhouette until a type is chosen.
+// `initialPayload` is a card payload from an NFC tag URL (?scan=creature:credit_card). It is checked with
+// POST /api/creatures/scan first: if that creature already lives in the village we offer to open it instead.
 export default function AddCreatureModal({ initialPayload, onClose, onOpenExisting, onCreated }) {
   const { catalog, add, status, error: loadError } = useCreatures();
-  const [step, setStep] = useState('pick'); // 'pick' | 'exists' | 'form'
-  const [entry, setEntry] = useState(null);
+  const [type, setType] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [values, setValues] = useState({});
   const [existing, setExisting] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const started = useRef(false);
 
-  const scan = useCallback(
-    async (payload) => {
-      setBusy(true);
+  const entry = catalog.find((c) => c.type === type) ?? null;
+  const { main, goal } = splitGoal(entry?.fields);
+
+  const chooseType = useCallback(
+    (t) => {
+      setType(t);
+      setValues(initValues(catalog.find((c) => c.type === t), {}));
       setError('');
-      try {
-        const res = await scanCard(payload);
-        setEntry(catalog.find((c) => c.type === res.type) ?? null);
-        setExisting(res.creature ?? null);
-        setStep(res.creature ? 'exists' : 'form');
-      } catch (err) {
-        setError(err.message || 'Could not read that card.');
-        setStep('pick');
-      } finally {
-        setBusy(false);
-      }
     },
     [catalog],
   );
 
   useEffect(() => {
-    if (initialPayload && catalog.length && !started.current) {
-      started.current = true;
-      scan(initialPayload);
+    if (!initialPayload || !catalog.length || started.current) return;
+    started.current = true;
+    setBusy(true);
+    scanCard(initialPayload)
+      .then((res) => {
+        chooseType(res.type);
+        setExisting(res.creature ?? null);
+      })
+      .catch((err) => setError(err.message || 'Could not read that card.'))
+      .finally(() => setBusy(false));
+  }, [initialPayload, catalog, chooseType]);
+
+  const setValue = (key) => (v) => setValues((vals) => ({ ...vals, [key]: v }));
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (!entry) {
+      setError('Pick what kind of financial decision this creature is.');
+      return;
     }
-  }, [initialPayload, catalog, scan]);
+    const missing = entry.fields.filter((f) => f.required && !String(values[f.key] ?? '').trim());
+    if (missing.length) {
+      setError(`Missing: ${missing.map((f) => f.label).join(', ')}`);
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const created = await add({ type: entry.type, data: collectData(entry, values), nickname: nickname.trim() || undefined });
+      onCreated(created);
+    } catch (err) {
+      setError(err.message || 'Could not save this creature.');
+      setBusy(false);
+    }
+  };
 
-  const title = step === 'form' && entry ? `New ${entry.name}` : 'Add a creature';
-
-  return (
-    <Modal title={title} onClose={onClose}>
-      {step === 'pick' && (
-        <>
-          <p className="meta modal-intro">
-            Tap a card to scan it. (Real NFC cards open the app with the same card code, so this is what a scan does.)
-          </p>
-          {status === 'loading' && <p className="notice">Loading creature types…</p>}
-          {loadError && catalog.length === 0 && <p className="form-error">{loadError}</p>}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="card-grid">
-            {catalog.map((c) => (
-              <button
-                key={c.type}
-                type="button"
-                className="card-option"
-                disabled={busy}
-                onClick={() => scan(c.nfcTags?.[0] ?? c.type)}
-              >
-                <span className="swatch big" style={{ background: c.color }} />
-                <strong>{c.name}</strong>
-                <span className="meta">
-                  {c.species} · {c.type.replace(/_/g, ' ')}
-                </span>
-              </button>
-            ))}
-          </div>
-          {busy && <p className="notice">Reading card…</p>}
-        </>
-      )}
-
-      {step === 'exists' && existing && (
+  if (existing) {
+    return (
+      <Modal title="Creature already here" onClose={onClose}>
         <div className="exists">
           <p>
             You already have <strong>{existing.nickname || entry?.name}</strong> in your village.
           </p>
           <div className="form-actions">
-            <button type="button" className="secondary-btn" onClick={() => setStep('form')}>
+            <button type="button" className="secondary-btn" onClick={() => setExisting(null)}>
               Add another
             </button>
             <button type="button" className="primary-btn" onClick={() => onOpenExisting(existing._id)}>
@@ -92,22 +84,88 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
             </button>
           </div>
         </div>
-      )}
+      </Modal>
+    );
+  }
 
-      {step === 'form' && entry && (
-        <>
-          <p className="meta modal-intro">{entry.greeting}</p>
-          <CreatureForm
-            entry={entry}
-            submitLabel="Move in"
-            onCancel={() => setStep('pick')}
-            onSubmit={async ({ data, nickname }) => {
-              const created = await add({ type: entry.type, data, nickname });
-              onCreated(created);
-            }}
-          />
-        </>
-      )}
+  return (
+    <Modal title="New character detected" onClose={onClose} className="id-modal" bare>
+      <form className="id-card new" style={{ '--accent': entry?.color ?? '#a3a380' }} onSubmit={save} noValidate>
+        <header className="id-band">
+          <div>
+            <span className="id-kicker">Village of Pollo · Creature ID</span>
+            <span className="id-no">New character detected</span>
+          </div>
+          <button type="button" className="close-btn" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </header>
+
+        <div className="id-body">
+          <div className="id-left">
+            <Portrait entry={entry} hidden={!entry} />
+            <p className="id-greeting">{entry ? entry.greeting : 'Who could it be? Choose a type to find out.'}</p>
+          </div>
+
+          <div className="id-right">
+            <label className="id-field id-name" htmlFor="new-nickname">
+              <span className="id-label">Name</span>
+              <input
+                id="new-nickname"
+                type="text"
+                maxLength={40}
+                value={nickname}
+                placeholder={entry?.name ?? 'Give it a name'}
+                onChange={(e) => setNickname(e.target.value)}
+              />
+            </label>
+
+            <label className="id-field" htmlFor="new-type">
+              <span className="id-label">
+                Type <i>(financial decision)</i>
+              </span>
+              <select id="new-type" value={type} onChange={(e) => chooseType(e.target.value)} disabled={busy && !entry}>
+                <option value="">Choose…</option>
+                {catalog.map((c) => (
+                  <option key={c.type} value={c.type}>
+                    {typeLabel(c.type)} · {c.name} the {c.species}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {status === 'loading' && <p className="notice">Loading creature types…</p>}
+            {loadError && catalog.length === 0 && <p className="form-error">{loadError}</p>}
+
+            {entry && main.length > 0 && (
+              <div className="id-grid">
+                {main.map((f) => (
+                  <IdField key={f.key} f={f} prefix="new" value={values[f.key] ?? ''} onChange={setValue(f.key)} />
+                ))}
+              </div>
+            )}
+
+            {goal && <IdField f={goal} prefix="new" value={values[goal.key] ?? ''} onChange={setValue(goal.key)} hint="(optional)" />}
+
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+
+            <div className="id-row-actions">
+              <button type="button" className="id-link" onClick={onClose} disabled={busy}>
+                Cancel
+              </button>
+              <button type="submit" className="id-save" disabled={busy || !entry}>
+                {busy ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <Mrz name={nickname || entry?.name || 'UNKNOWN'} type={type || 'unregistered'} id="NEW" />
+      </form>
     </Modal>
   );
 }

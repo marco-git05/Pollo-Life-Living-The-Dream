@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import Modal from './Modal';
+import { IdField, Mrz, Portrait } from './creatureFields';
+import { collectData, initValues, splitGoal, useFieldValues } from '../creatures/fields';
 import { addTransaction, getTransactions } from '../api/bank';
 import { useBank } from '../bank/useBank';
 import { useCreatures } from '../creatures/useCreatures';
-import { MOOD_LABEL, MOOD_TONE, formatField, summaryFor, typeLabel } from '../creatures/viewModel';
+import { MOOD_LABEL, MOOD_TONE, summaryFor, typeLabel } from '../creatures/viewModel';
 import { fmt } from '../utils/finance';
 
 // What "feeding" a creature means per type. Each becomes POST /api/bank/transactions
@@ -10,11 +13,8 @@ import { fmt } from '../utils/finance';
 // ASSUMPTION: the backend picks the source account (Checking) when accountType is omitted.
 const FEED = {
   income: { kind: 'deposit', label: 'Record a paycheck', description: 'Paycheck', amountKey: 'amount' },
-  groceries: { kind: 'purchase', label: 'Log a grocery run', description: 'Grocery run' },
   subscription: { kind: 'bill_payment', label: 'Pay this month', description: 'Subscription payment', amountKey: 'cost' },
-  student_loan: { kind: 'bill_payment', label: 'Make a payment', description: 'Student loan payment', amountKey: 'minPayment' },
   credit_card: { kind: 'bill_payment', label: 'Make a payment', description: 'Credit card payment', amountKey: 'minPayment' },
-  savings_goal: { kind: 'transfer', label: 'Add to savings', description: 'Savings deposit', toAccountType: 'Savings' },
 };
 
 function FeedForm({ creature, onDone }) {
@@ -59,7 +59,7 @@ function FeedForm({ creature, onDone }) {
 
   return (
     <form className="feed" onSubmit={submit} noValidate>
-      <strong>{cfg.label}</strong>
+      <strong className="id-label">{cfg.label}</strong>
       <div className="feed-row">
         <input
           type="number"
@@ -87,11 +87,21 @@ function FeedForm({ creature, onDone }) {
   );
 }
 
-export default function CreatureCard({ creature, entry, onClose, onEdit }) {
-  const { remove } = useCreatures();
+const shortDate = (d) => {
+  const t = d ? new Date(d) : null;
+  return t && !Number.isNaN(t.getTime()) ? t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+};
+
+// The creature's ID card: portrait on the left, editable details on the right, "Save changes" up top.
+export default function CreatureCard({ creature, entry, onClose }) {
+  const { remove, update } = useCreatures();
   const [recent, setRecent] = useState([]);
   const [tick, setTick] = useState(0);
   const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [nickname, setNickname] = useState(creature.nickname ?? '');
+  const [values, setValue, setValues] = useFieldValues(entry, creature.data);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +114,36 @@ export default function CreatureCard({ creature, entry, onClose, onEdit }) {
   }, [creature._id, tick]);
 
   const name = creature.nickname || entry?.name || typeLabel(creature.type);
+  const idNo = String(creature._id).slice(-6).toUpperCase();
+  const { main, goal } = splitGoal(entry?.fields);
+
+  // Compare parsed values so "640" vs "640.00" doesn't count as a change.
+  const dirty =
+    Boolean(entry) &&
+    (nickname !== (creature.nickname ?? '') ||
+      JSON.stringify(collectData(entry, values)) !== JSON.stringify(collectData(entry, initValues(entry, creature.data))));
+
+  const edit = (setter) => (v) => {
+    setSaved(false);
+    setter(v);
+  };
+
+  const save = async () => {
+    if (!entry || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const data = collectData(entry, values);
+      // Fields that were cleared are sent as '' so the backend's merge actually clears them.
+      for (const f of entry.fields) if (!(f.key in data) && creature.data?.[f.key] != null) data[f.key] = '';
+      await update(creature._id, { data, nickname: nickname.trim() });
+      setSaved(true);
+    } catch (err) {
+      setError(err.message || 'Could not save changes.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const del = async () => {
     if (!window.confirm(`Remove ${name} from your village?`)) return;
@@ -115,62 +155,128 @@ export default function CreatureCard({ creature, entry, onClose, onEdit }) {
     }
   };
 
+  const reset = () => {
+    setNickname(creature.nickname ?? '');
+    setValues(initValues(entry, creature.data));
+    setError('');
+  };
+
   return (
-    <aside className="creature-card">
-      <button type="button" className="close" onClick={onClose} aria-label="Close">
-        ×
-      </button>
+    <Modal title={`${name} — creature ID`} onClose={onClose} className="id-modal" bare>
+      <article className="id-card" style={{ '--accent': entry?.color ?? '#a3a380' }}>
+        <header className="id-band">
+          <div>
+            <span className="id-kicker">Village of Pollo · Creature ID</span>
+            <span className="id-no">No. {idNo}</span>
+          </div>
+          <div className="id-band-actions">
+            <button type="button" className="id-save" onClick={save} disabled={!dirty || busy}>
+              {busy ? 'Saving…' : saved && !dirty ? 'Saved ✓' : 'Save changes'}
+            </button>
+            <button type="button" className="close-btn" onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          </div>
+        </header>
 
-      <div className="cc-head">
-        <span className="swatch big" style={{ background: entry?.color ?? '#a3a380' }} />
-        <div>
-          <strong>{name}</strong>
-          <span className="cc-kind">
-            {typeLabel(creature.type)}
-            {entry?.species ? ` · ${entry.species}` : ''}
-          </span>
-        </div>
-      </div>
+        <div className="id-body">
+          <div className="id-left">
+            <Portrait entry={entry}>
+              <span className={`id-stamp ${MOOD_TONE[creature.mood] ?? 'ok'}`}>{MOOD_LABEL[creature.mood] ?? 'Steady'}</span>
+            </Portrait>
+            <div className="id-summary">{summaryFor(creature.type, creature.data)}</div>
+            <dl className="id-meta">
+              <div>
+                <dt>Species</dt>
+                <dd>{entry?.species ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Moved in</dt>
+                <dd>{shortDate(creature.createdAt)}</dd>
+              </div>
+            </dl>
+          </div>
 
-      <div className="cc-amount">{summaryFor(creature.type, creature.data)}</div>
-      <div className={`badge ${MOOD_TONE[creature.mood] ?? 'ok'}`}>{MOOD_LABEL[creature.mood] ?? 'Steady'}</div>
+          <form
+            className="id-right"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+            noValidate
+          >
+            <label className="id-field id-name" htmlFor="id-nickname">
+              <span className="id-label">Name</span>
+              <input
+                id="id-nickname"
+                type="text"
+                maxLength={40}
+                value={nickname}
+                placeholder={entry?.name}
+                onChange={(e) => edit(setNickname)(e.target.value)}
+              />
+            </label>
 
-      <p className="cc-note">{creature.lastAdvice || entry?.greeting}</p>
-
-      {entry && (
-        <dl className="cc-fields">
-          {entry.fields.map((f) => (
-            <div key={f.key}>
-              <dt>{f.label}</dt>
-              <dd>{formatField(f, creature.data?.[f.key])}</dd>
+            <div className="id-field id-static">
+              <span className="id-label">Type</span>
+              <span>{typeLabel(creature.type)}</span>
             </div>
-          ))}
-        </dl>
-      )}
 
-      <FeedForm key={creature._id} creature={creature} onDone={() => setTick((t) => t + 1)} />
+            {entry ? (
+              <div className="id-grid">
+                {main.map((f) => (
+                  <IdField key={f.key} f={f} value={values[f.key]} onChange={edit(setValue(f.key))} />
+                ))}
+              </div>
+            ) : (
+              <p className="form-error">Unknown creature type.</p>
+            )}
 
-      {recent.length > 0 && (
-        <ul className="cc-recent">
-          {recent.map((t) => (
-            <li key={t._id}>
-              <span>{t.description || t.kind}</span>
-              <strong>{fmt(t.amount, 2)}</strong>
-            </li>
-          ))}
-        </ul>
-      )}
+            {goal && <IdField f={goal} value={values[goal.key]} onChange={edit(setValue(goal.key))} hint="(optional)" />}
 
-      {error && <p className="form-error">{error}</p>}
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
 
-      <div className="cc-actions">
-        <button type="button" className="action" onClick={() => onEdit(creature._id)}>
-          Edit
-        </button>
-        <button type="button" className="action danger" onClick={del}>
-          Remove
-        </button>
-      </div>
-    </aside>
+            <div className="id-row-actions">
+              {dirty && (
+                <button type="button" className="id-link" onClick={reset}>
+                  Undo changes
+                </button>
+              )}
+              <button type="button" className="id-delete" onClick={del}>
+                Delete
+              </button>
+            </div>
+            {/* lets Enter in any field save */}
+            <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+          </form>
+        </div>
+
+        <section className="id-back">
+          <p className="id-note">
+            <span className="id-label">{name} says</span>
+            {creature.lastAdvice || entry?.greeting}
+          </p>
+          <div>
+            <FeedForm key={creature._id} creature={creature} onDone={() => setTick((t) => t + 1)} />
+            {recent.length > 0 && (
+              <ul className="cc-recent">
+                {recent.map((t) => (
+                  <li key={t._id}>
+                    <span>{t.description || t.kind}</span>
+                    <strong>{fmt(t.amount, 2)}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        <Mrz name={name} type={creature.type} id={idNo} />
+      </article>
+    </Modal>
   );
 }

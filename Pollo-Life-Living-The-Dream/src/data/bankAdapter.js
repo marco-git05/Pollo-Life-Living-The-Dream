@@ -36,7 +36,6 @@ function creatureForBill(payee = '', creatures) {
   return (
     creatures.find((c) => c.nickname && p.includes(c.nickname.toLowerCase())) ??
     creatures.find((c) => p.includes(c.type.replace(/_/g, ' '))) ??
-    creatures.find((c) => c.type === 'student_loan' && p.includes('student')) ??
     creatures.find((c) => c.type === 'credit_card' && (p.includes('credit') || p.includes('card'))) ??
     creatures.find((c) => c.type === 'subscription' && String(c.data?.name ?? '').toLowerCase() === p) ??
     null

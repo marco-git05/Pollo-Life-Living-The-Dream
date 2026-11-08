@@ -39,9 +39,11 @@ export default function CreaturesProvider({ children }) {
 
   const value = useMemo(() => {
     const status = creatures === undefined ? (error ? 'error' : 'loading') : 'ready';
+    // Creatures whose type is no longer in the catalog (retired types) are hidden everywhere.
+    const known = new Set(catalog.map((c) => c.type));
     return {
       catalog,
-      creatures: creatures ?? [],
+      creatures: (creatures ?? []).filter((c) => known.has(c.type)),
       status,
       error,
       entry: (type) => catalog.find((c) => c.type === type),

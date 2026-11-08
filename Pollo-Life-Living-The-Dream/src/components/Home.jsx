@@ -3,11 +3,10 @@ import Dashboard from './Dashboard';
 import Village from '../village/Village';
 import CreatureCard from './CreatureCard';
 import AddCreatureModal from './AddCreatureModal';
-import EditCreatureModal from './EditCreatureModal';
 import { useCreatures } from '../creatures/useCreatures';
 import { toVillageCreature } from '../creatures/viewModel';
 
-// NFC tags open the app at /?scan=creature:student_loan. Read it once, then clean the URL.
+// NFC tags open the app at /?scan=creature:credit_card. Read it once, then clean the URL.
 function takeScanParam() {
   try {
     const url = new URL(window.location.href);
@@ -23,20 +22,29 @@ function takeScanParam() {
 }
 
 export default function Home({ onOpenMenu }) {
-  const { creatures, entry, status, error, reload } = useCreatures();
+  const { creatures, entry, status, error, reload, remove } = useCreatures();
   const [selectedId, setSelectedId] = useState(null);
   const [scanPayload, setScanPayload] = useState(takeScanParam);
   const [adding, setAdding] = useState(Boolean(scanPayload));
-  const [editingId, setEditingId] = useState(null);
 
   const village = useMemo(() => creatures.map((c) => toVillageCreature(c, entry(c.type))), [creatures, entry]);
   const selected = creatures.find((c) => c._id === selectedId) ?? null;
-  const editing = creatures.find((c) => c._id === editingId) ?? null;
 
   // A creature removed elsewhere shouldn't leave a dangling selection.
   useEffect(() => {
     if (selectedId && status === 'ready' && !selected) setSelectedId(null);
   }, [selectedId, selected, status]);
+
+  const deleteCreature = async (id) => {
+    const c = village.find((v) => v.id === id);
+    if (!window.confirm(`Remove ${c?.name ?? 'this creature'} from your village?`)) return;
+    try {
+      await remove(id);
+      if (selectedId === id) setSelectedId(null);
+    } catch (err) {
+      window.alert(err.message || 'Could not remove it.');
+    }
+  };
 
   const closeAdd = () => {
     setAdding(false);
@@ -56,17 +64,22 @@ export default function Home({ onOpenMenu }) {
         </div>
       )}
 
-      <Village creatures={village} selectedId={selectedId} onSelect={setSelectedId} onAdd={() => setAdding(true)}>
-        {selected && (
-          <CreatureCard
-            key={selected._id}
-            creature={selected}
-            entry={entry(selected.type)}
-            onClose={() => setSelectedId(null)}
-            onEdit={setEditingId}
-          />
-        )}
-      </Village>
+      <Village
+        creatures={village}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onDelete={deleteCreature}
+        onAdd={() => setAdding(true)}
+      />
+
+      {selected && (
+        <CreatureCard
+          key={selected._id}
+          creature={selected}
+          entry={entry(selected.type)}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
 
       {adding && (
         <AddCreatureModal
@@ -82,8 +95,6 @@ export default function Home({ onOpenMenu }) {
           }}
         />
       )}
-
-      {editing && <EditCreatureModal creature={editing} onClose={() => setEditingId(null)} />}
     </>
   );
 }

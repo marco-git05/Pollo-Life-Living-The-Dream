@@ -1,14 +1,25 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createWorld, layoutWorld, updateWorld, drawWorld, hitTest, syncWorld } from './engine';
 
+// Pixel-art sprite when the file exists, otherwise the placeholder shape.
+function ChipIcon({ creature }) {
+  const [failed, setFailed] = useState(false);
+  if (creature.sprite && !failed) {
+    return <img className="chip-sprite" src={creature.sprite} alt="" onError={() => setFailed(true)} />;
+  }
+  return <span className={`chip-shape ${creature.shape}`} style={{ background: creature.color }} />;
+}
+
 // `creatures` are village view models (see creatures/viewModel.js): { id, name, shape, color, sprite, mood }.
-// `children` is rendered on top of the village (the selected-creature card).
-export default function Village({ creatures, selectedId, onSelect, onAdd, children }) {
+// Pressing a chip opens a small Edit / Delete menu; clicking a creature in the scene opens its ID card directly.
+// `children` is rendered on top of the village.
+export default function Village({ creatures, selectedId, onSelect, onDelete, onAdd, children }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const worldRef = useRef(null);
   const selectedRef = useRef(selectedId);
   const hoverRef = useRef(null);
+  const [menuId, setMenuId] = useState(null);
 
   useEffect(() => {
     selectedRef.current = selectedId;
@@ -73,6 +84,7 @@ export default function Village({ creatures, selectedId, onSelect, onAdd, childr
 
   const handleClick = (e) => {
     const id = pointer(e);
+    setMenuId(null);
     onSelect(id && id !== selectedId ? id : null);
   };
 
@@ -89,15 +101,42 @@ export default function Village({ creatures, selectedId, onSelect, onAdd, childr
 
       <nav className="village-menu" aria-label="Creatures">
         {creatures.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`chip ${c.id === selectedId ? 'on' : ''}`}
-            onClick={() => onSelect(c.id === selectedId ? null : c.id)}
-          >
-            <span className={`chip-shape ${c.shape}`} style={{ background: c.color }} />
-            {c.name}
-          </button>
+          <div key={c.id} className="chip-wrap">
+            <button
+              type="button"
+              className={`chip ${c.id === selectedId || c.id === menuId ? 'on' : ''}`}
+              aria-expanded={c.id === menuId}
+              onClick={() => setMenuId(c.id === menuId ? null : c.id)}
+            >
+              <ChipIcon creature={c} />
+              {c.name}
+            </button>
+            {c.id === menuId && (
+              <div className="chip-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuId(null);
+                    onSelect(c.id);
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="danger"
+                  onClick={() => {
+                    setMenuId(null);
+                    onDelete?.(c.id);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         ))}
         <button type="button" className="chip add" onClick={onAdd}>
           + Add creature

@@ -40,7 +40,7 @@ export default function WhatIf({ loan, extra, setExtra, monthlyNet, creatureName
 
       <label className="slider">
         <span>
-          Extra student loan payment: <strong>{fmt(extra)}/mo</strong>
+          Extra card payment: <strong>{fmt(extra)}/mo</strong>
         </span>
         <input
           type="range"

@@ -7,13 +7,10 @@ const MOODS = { happy: 'happy', ok: 'neutral', worried: 'worried', sad: 'sad' };
 export const MOOD_LABEL = { happy: 'Thriving', ok: 'Steady', worried: 'Needs attention', sad: 'Struggling' };
 export const MOOD_TONE = { happy: 'good', ok: 'ok', worried: 'warn', sad: 'warn' };
 
-// Placeholder shapes until the pixel-art sprites exist (the catalog's `sprite` is used when the file loads).
+// Fallback shapes, only drawn if a sprite file fails to load.
 const SHAPES = {
-  student_loan: 'square',
   credit_card: 'triangle',
   income: 'circle',
-  groceries: 'pill',
-  savings_goal: 'diamond',
   subscription: 'hexagon',
 };
 
@@ -48,16 +45,10 @@ export function formatField(field, value) {
 // One-line headline for a creature, per type.
 export function summaryFor(type, data = {}) {
   switch (type) {
-    case 'student_loan':
-      return `${money(data.balance)} left`;
     case 'credit_card':
       return `${money(data.balance)} balance`;
     case 'income':
       return `${money(data.amount)} · ${data.frequency ?? 'per paycheck'}`;
-    case 'groceries':
-      return `${money(data.spentSoFar ?? 0)} of ${money(data.monthlyBudget)}`;
-    case 'savings_goal':
-      return `${money(data.saved ?? 0)} of ${money(data.target)}`;
     case 'subscription':
       return `${money(data.cost)} / mo`;
     default:

@@ -264,7 +264,7 @@ export async function recordTransaction(user, { kind, amount, description, accou
 // ---------------------------------------------------------------------------
 // Creatures ↔ Nessie bills
 // ---------------------------------------------------------------------------
-const BILL_TYPES = { student_loan: 'Checking', credit_card: 'Checking', subscription: 'Credit Card' };
+const BILL_TYPES = { credit_card: 'Checking', subscription: 'Credit Card' };
 
 /**
  * For recurring-payment creatures (loan, card, subscription), keep a matching

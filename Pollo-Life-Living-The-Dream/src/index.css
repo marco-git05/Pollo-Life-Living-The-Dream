@@ -679,6 +679,14 @@ button {
   flex: none;
 }
 
+.chip-sprite {
+  width: 20px;
+  height: 20px;
+  margin: -3px 0;
+  flex: none;
+  image-rendering: pixelated;
+}
+
 .chip-shape.big {
   width: 28px;
   height: 28px;
@@ -713,55 +721,12 @@ button {
   border: 0;
 }
 
-.creature-card {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 230px;
-  background: var(--paper);
-  border: 2px solid var(--umber);
-  border-radius: 12px;
-  box-shadow: 3px 3px 0 var(--umber);
-  padding: 10px 12px;
-}
 
-.creature-card p {
-  margin: 6px 0 0;
-}
 
-.cc-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
-.cc-head strong {
-  display: block;
-  font-family: var(--font-head);
-  font-size: 18px;
-}
 
-.cc-kind {
-  font-size: 11px;
-  color: var(--umber-soft);
-}
 
-.cc-amount {
-  font-family: var(--font-head);
-  font-size: 20px;
-  margin: 6px 0;
-}
 
-.close {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  background: none;
-  border: 0;
-  font-size: 20px;
-  cursor: pointer;
-  line-height: 1;
-}
 
 /* ───────── responsive ───────── */
 @media (max-width: 1100px) {
@@ -782,11 +747,6 @@ button {
   .grid {
     grid-template-columns: 1fr;
     grid-template-areas: 'spend' 'health' 'forecast' 'whatif' 'priority' 'tips' 'news';
-  }
-  .creature-card {
-    top: auto;
-    bottom: 8px;
-    right: 8px;
   }
 }
 
