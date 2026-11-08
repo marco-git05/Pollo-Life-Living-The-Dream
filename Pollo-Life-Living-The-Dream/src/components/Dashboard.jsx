@@ -22,8 +22,10 @@ import {
   creatures,
 } from '../data/dummyData';
 import { buildForecast, computeHealth } from '../utils/finance';
+import { useAuth } from '../auth/useAuth';
 
 export default function Dashboard({ onSelectCreature, onOpenMenu }){
+  const { user } = useAuth();
   const [extra, setExtra] = useState(0);
 
   const monthlyNet = profile.monthlyIncome - profile.monthlyExpenses - profile.monthlyDebtPayments;
