@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { creatures } from '../data/dummyData';
 
 export default function Login() {
   const { login, register, loginDemo } = useAuth();
-  const [mode, setMode] = useState('signin'); // 'signin' | 'register'
+  const [mode, setMode] = useState('signin');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,15 +35,8 @@ export default function Login() {
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="login-creatures" aria-hidden="true">
-          {creatures.map((c, i) => (
-            <span key={c.id} className="hop" style={{ '--i': i }}>
-              <span className={`chip-shape big ${c.shape}`} style={{ background: c.color }} />
-            </span>
-          ))}
-        </div>
 
-        <h1>Finance Village</h1>
+        <h1>Poyo Life: Living the Dream</h1>
         <p className="login-sub">See your whole financial picture and your next move.</p>
 
         <div className="auth-tabs" role="group" aria-label="Sign in or create account">
