@@ -23,13 +23,34 @@ function getSprite(url) {
   return s.ok ? s.img : null;
 }
 
+// ───────────── village art ─────────────
+// Everything below is measured in background-image pixels (1920×352) and scaled to the canvas.
+const BG = { url: '/sprites/village/background.webp', w: 1920, h: 352 };
+// One plot per mailbox, left to right, with the matching roof color.
+const PLOTS = [
+  { x: 165, url: '/sprites/village/house-blue.webp' },
+  { x: 464, url: '/sprites/village/house-red.webp' },
+  { x: 784, url: '/sprites/village/house-green.webp' },
+  { x: 1165, url: '/sprites/village/house-purple.webp' },
+  { x: 1427, url: '/sprites/village/house-orange.webp' },
+];
+const HOUSE = { w: 168, h: 160, scale: 0.8625, top: 36.4, door: 176 }; // sprite size, sprite→bg scale, top y, door y
+const PATH_TOP = 266; // creatures' feet stay on/below the dirt path
+const PATH_RIGHT = 1470; // the pond starts past here
+const GRASS = { x: 0, y: 300, w: 480, h: 52 }; // plain grass strip, tiled below the image on tall canvases
+
+// Preload so the first frame already has the art.
+[BG.url, ...PLOTS.map((p) => p.url)].forEach(getSprite);
+
 // ───────────── world ─────────────
 export function createWorld() {
   return {
     w: 0,
     h: 0,
     groundTop: 0,
-    size: 44,
+    s: 1, // background scale
+    ox: 0,
+    oy: 0,
     r: 12,
     wanderTop: 0,
     wanderBottom: 0,
@@ -70,44 +91,55 @@ export function syncWorld(world, creatures) {
 export function layoutWorld(world, w, h) {
   world.w = w;
   world.h = h;
-  world.groundTop = h * 0.4;
-  world.r = clamp(h * 0.06, 11, 16);
 
-  const n = world.agents.length;
-  const margin = Math.min(70, w * 0.07);
-  const right = w - margin - Math.min(110, w * 0.12); // leave room for the pond
-  const span = n ? (right - margin) / n : 0;
+  // Fit the background to the width. If the canvas is shorter, trim a little sky first, then grass.
+  const sc = w / BG.w;
+  world.s = sc;
+  world.ox = 0;
+  world.oy = h >= BG.h * sc ? 0 : Math.max(h - BG.h * sc, -30 * sc);
+  world.groundTop = world.oy + PATH_TOP * sc;
+  world.r = clamp(20 * sc, 10, 18);
 
-  world.size = clamp(h * 0.17, 38, 58); // house width
-  if (n) world.size = Math.min(world.size, Math.max(30, span * 0.9));
+  const X = (x) => world.ox + x * sc;
+  const Y = (y) => world.oy + y * sc;
 
-  world.houses = world.agents.map((a, i) => ({
-    id: a.id,
-    color: a.color,
-    name: a.name,
-    x: margin + span * (i + 0.5),
-    y: world.groundTop + world.size * 0.85 + (i % 2) * 10, // baseline
-  }));
+  // The first five creatures each get a plot; extras just roam.
+  world.houses = world.agents.slice(0, PLOTS.length).map((a, i) => {
+    const hw = HOUSE.w * HOUSE.scale * sc;
+    const hh = HOUSE.h * HOUSE.scale * sc;
+    return {
+      id: a.id,
+      name: a.name,
+      url: PLOTS[i].url,
+      x: X(PLOTS[i].x),
+      top: Y(HOUSE.top),
+      w: hw,
+      h: hh,
+      y: Y(HOUSE.top) + hh, // baseline, used for depth sorting
+      doorY: Y(HOUSE.door),
+    };
+  });
 
-  const lowestHouse = n ? Math.max(...world.houses.map((hs) => hs.y)) : world.groundTop + world.size;
-  world.wanderTop = lowestHouse + world.r * 2 + 6;
-  world.wanderBottom = Math.max(h - world.r - 8, world.wanderTop + 10);
+  world.wanderLeft = 20;
+  world.wanderRight = Math.max(world.wanderLeft + 10, Math.min(w - 20, X(PATH_RIGHT)));
+  world.wanderTop = world.groundTop;
+  world.wanderBottom = Math.max(h - world.r * 0.5 - 6, world.wanderTop + 10);
 
   world.agents.forEach((a, i) => {
     if (!a.placed) {
-      a.x = a.spawnX != null ? clamp(a.spawnX * w, 20, w - 20) : world.houses[i].x + rand(-30, 30);
+      const home = world.houses[i];
+      a.x = a.spawnX != null ? a.spawnX * w : home ? home.x + rand(-30, 30) : rand(world.wanderLeft, world.wanderRight);
       a.y = rand(world.wanderTop, world.wanderBottom);
       a.placed = true;
-    } else {
-      a.x = clamp(a.x, 16, w - 16);
-      a.y = clamp(a.y, world.wanderTop, world.wanderBottom);
     }
+    a.x = clamp(a.x, world.wanderLeft, world.wanderRight);
+    if (a.state !== 'goHome' && a.state !== 'inside') a.y = clamp(a.y, world.wanderTop, world.wanderBottom);
   });
 }
 
 function door(world, id) {
   const hs = world.houses.find((h) => h.id === id);
-  return hs ? { x: hs.x, y: hs.y + 4 } : { x: world.w / 2, y: world.wanderTop };
+  return hs ? { x: hs.x, y: hs.doorY } : null;
 }
 
 export function updateWorld(world, dt, selectedId) {
@@ -116,9 +148,9 @@ export function updateWorld(world, dt, selectedId) {
     if (a.id === selectedId) {
       if (a.state === 'inside') {
         const d = door(world, a.id);
-        a.x = d.x;
-        a.y = d.y + world.r;
+        if (d) a.x = d.x;
       }
+      a.y = Math.max(a.y, world.wanderTop); // step back onto the path
       a.state = 'idle';
       a.timer = 0.6;
       continue;
@@ -130,9 +162,9 @@ export function updateWorld(world, dt, selectedId) {
         const roll = Math.random();
         if (roll < 0.7) {
           a.state = 'walk';
-          a.tx = rand(20, world.w - 20);
+          a.tx = rand(world.wanderLeft, world.wanderRight);
           a.ty = rand(world.wanderTop, world.wanderBottom);
-        } else if (roll < 0.9) {
+        } else if (roll < 0.9 && door(world, a.id)) {
           a.state = 'goHome';
           const d = door(world, a.id);
           a.tx = d.x;
@@ -165,7 +197,7 @@ export function updateWorld(world, dt, selectedId) {
     } else if (a.state === 'inside') {
       a.timer -= dt;
       if (a.timer <= 0) {
-        a.y += world.r + 2; // step out in front of the door
+        a.y = world.wanderTop; // walk back down to the path
         a.state = 'idle';
         a.timer = rand(0.4, 1.5);
       }
@@ -186,8 +218,7 @@ export function hitTest(world, px, py) {
   }
   if (best) return best;
   for (const h of world.houses) {
-    const s = world.size;
-    if (px > h.x - s / 2 && px < h.x + s / 2 && py > h.y - s * 1.0 && py < h.y) return h.id;
+    if (px > h.x - h.w / 2 && px < h.x + h.w / 2 && py > h.top && py < h.y) return h.id;
   }
   return null;
 }
@@ -200,106 +231,52 @@ function rr(ctx, x, y, w, h, r) {
   else ctx.rect(x, y, w, h);
 }
 
-function drawScenery(ctx, world, t) {
-  const { w, h, groundTop } = world;
-
-  const sky = ctx.createLinearGradient(0, 0, 0, groundTop);
-  sky.addColorStop(0, '#efebce');
-  sky.addColorStop(1, '#e6dfae');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, groundTop + 2);
-
-  // sun
-  ctx.fillStyle = '#e9c9a0';
-  ctx.beginPath();
-  ctx.arc(w * 0.88, groundTop * 0.42, Math.min(26, groundTop * 0.28), 0, Math.PI * 2);
-  ctx.fill();
-
-  // clouds drifting
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  for (let i = 0; i < 3; i++) {
-    const cx = ((t * (6 + i * 3) + i * w * 0.38) % (w + 120)) - 60;
-    const cy = groundTop * (0.25 + i * 0.2);
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 34, 11, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 18, cy - 7, 20, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
+function drawScenery(ctx, world) {
+  const { w, h, s: sc, ox, oy } = world;
+  const bg = getSprite(BG.url);
+  if (!bg) {
+    ctx.fillStyle = '#8fcf5a';
+    ctx.fillRect(0, 0, w, h);
+    return;
   }
-
-  // ground
-  ctx.fillStyle = '#a3a380';
-  ctx.fillRect(0, groundTop, w, h - groundTop);
-  ctx.fillStyle = '#b1b18d';
-  for (let i = 0; i < 14; i++) {
-    const gx = (i * 97.3) % w;
-    const gy = groundTop + 20 + ((i * 53.7) % Math.max(10, h - groundTop - 30));
-    ctx.fillRect(gx, gy, 18, 3);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  const bottom = oy + BG.h * sc;
+  // Tall canvas: keep the meadow going below the picture.
+  if (bottom < h) {
+    const tw = GRASS.w * sc;
+    const th = GRASS.h * sc;
+    for (let y = Math.floor(bottom) - 1; y < h; y += th - 1) {
+      for (let x = 0; x < w; x += tw - 1) {
+        ctx.drawImage(bg, GRASS.x, GRASS.y, GRASS.w, GRASS.h, x, y, tw, th);
+      }
+    }
   }
-  ctx.fillStyle = UMBER;
-  ctx.fillRect(0, groundTop, w, 3);
-
-  // pond (bottom right, like the sketch)
-  const px = w - Math.min(70, w * 0.09);
-  const py = h * 0.78;
-  ctx.fillStyle = '#9db5a5';
-  ctx.strokeStyle = UMBER;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.ellipse(px, py, 48, 22, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.beginPath();
-  ctx.arc(px - 8 + Math.sin(t) * 3, py, 6, 0.2, 2.6);
-  ctx.stroke();
+  ctx.drawImage(bg, ox, oy, BG.w * sc, BG.h * sc);
+  ctx.restore();
 }
 
-function drawTree(ctx, x, baseY, s) {
-  ctx.fillStyle = UMBER;
-  ctx.fillRect(x - 3, baseY - s * 0.5, 6, s * 0.5);
-  ctx.fillStyle = '#7f8a5a';
-  ctx.strokeStyle = UMBER;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(x, baseY - s * 0.7, s * 0.38, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-}
-
-function drawHouse(ctx, world, house, highlight) {
-  const s = world.size;
-  const { x, y } = house;
-  const bodyH = s * 0.62;
-
-  ctx.strokeStyle = UMBER;
-  ctx.lineWidth = 2;
-
-  ctx.fillStyle = '#f6f2da';
-  ctx.fillRect(x - s / 2, y - bodyH, s, bodyH);
-  ctx.strokeRect(x - s / 2, y - bodyH, s, bodyH);
-
-  // roof in the creature's color
-  ctx.fillStyle = house.color;
-  ctx.beginPath();
-  ctx.moveTo(x - s / 2 - 5, y - bodyH);
-  ctx.lineTo(x, y - bodyH - s * 0.4);
-  ctx.lineTo(x + s / 2 + 5, y - bodyH);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // door
-  ctx.fillStyle = UMBER;
-  ctx.fillRect(x - s * 0.1, y - bodyH * 0.55, s * 0.2, bodyH * 0.55);
-  // window
-  ctx.fillStyle = '#e9c9a0';
-  ctx.fillRect(x + s * 0.22, y - bodyH * 0.8, s * 0.16, s * 0.16);
-  ctx.strokeRect(x + s * 0.22, y - bodyH * 0.8, s * 0.16, s * 0.16);
+function drawHouse(ctx, house, highlight, t) {
+  const img = getSprite(house.url);
+  if (!img) return;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, house.x - house.w / 2, house.top, house.w, house.h);
+  ctx.restore();
 
   if (highlight) {
-    ctx.strokeStyle = '#d8a48f';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x - s / 2 - 4, y - bodyH - s * 0.4, s + 8, bodyH + s * 0.4 + 3);
+    // little bouncing marker over the selected creature's roof
+    const my = house.top - 4 - Math.abs(Math.sin(t * 3)) * 4;
+    ctx.fillStyle = '#ffe066';
+    ctx.strokeStyle = UMBER;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(house.x - 7, my - 10);
+    ctx.lineTo(house.x + 7, my - 10);
+    ctx.lineTo(house.x, my);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   }
 }
 
@@ -442,17 +419,10 @@ function drawAgent(ctx, world, a, { selected, hovered, t }) {
 export function drawWorld(ctx, world, { selectedId, hoveredId, time }) {
   const { w, h } = world;
   ctx.clearRect(0, 0, w, h);
-  drawScenery(ctx, world, time);
-
-  // trees between houses
-  for (let i = 0; i < world.houses.length - 1; i += 2) {
-    const a = world.houses[i];
-    const b = world.houses[i + 1];
-    drawTree(ctx, (a.x + b.x) / 2, Math.min(a.y, b.y) + 2, world.size * 0.95);
-  }
+  drawScenery(ctx, world);
 
   const items = [
-    ...world.houses.map((hs) => ({ y: hs.y, draw: () => drawHouse(ctx, world, hs, hs.id === selectedId) })),
+    ...world.houses.map((hs) => ({ y: hs.y, draw: () => drawHouse(ctx, hs, hs.id === selectedId, time) })),
     ...world.agents
       .filter((a) => a.state !== 'inside')
       .map((a) => ({
