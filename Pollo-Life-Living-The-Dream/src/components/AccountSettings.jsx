@@ -2,11 +2,13 @@ import { useState } from 'react';
 import GearButton from './GearButton';
 import { user, accounts, decisions, creatures } from '../data/dummyData';
 import { fmt } from '../utils/finance';
+import { useAuth } from '../auth/useAuth';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function AccountSettings({ onBack, onOpenMenu }) {
+  const { user } = useAuth();
   const [filter, setFilter] = useState('All');
   const [prefs, setPrefs] = useState({ reminders: true, weekly: false });
 
