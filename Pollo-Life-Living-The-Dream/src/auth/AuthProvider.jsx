@@ -28,6 +28,7 @@ export default function AuthProvider({ children }) {
       login: async (creds) => finish(await api.login(creds)),
       register: async (details) => finish(await api.register(details)),
       loginDemo: async () => finish(await api.loginDemo()),
+      loginCaseStudy: async (username, password) => finish(await api.loginCaseStudy(username, password)),
       logout: () => finish(null),
     };
   }, [session]);

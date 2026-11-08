@@ -29,8 +29,10 @@ function validate(type, data = {}) {
   return null;
 }
 
+const normalizeSerial = (serial) => (typeof serial === 'string' ? serial.replace(/[:-\s]/g, '').toUpperCase() : '');
+
 r.get('/', ah(async (req, res) => {
-  res.json(await Creature.find({ owner: req.userId }).sort('createdAt'));
+  res.json(await Creature.find({ owner: req.userId, active: true }).sort('createdAt'));
 }));
 
 r.get('/:id', ah(async (req, res) => {
@@ -42,9 +44,17 @@ r.get('/:id', ah(async (req, res) => {
 /** NFC scan → { creature (existing or null), type } */
 r.post('/scan', ah(async (req, res) => {
   const { payload, serial } = req.body || {};
-  if (serial) {
-    const bySerial = await Creature.findOne({ owner: req.userId, nfcTagId: serial });
-    if (bySerial) return res.json({ creature: bySerial, type: bySerial.type });
+  const normalizedSerial = normalizeSerial(serial);
+  if (normalizedSerial) {
+    const serialCreatures = await Creature.find({ owner: req.userId, nfcTagId: { $exists: true } });
+    const bySerial = serialCreatures.find((creature) => normalizeSerial(creature.nfcTagId) === normalizedSerial);
+    if (bySerial) {
+      if (!bySerial.active) {
+        bySerial.active = true;
+        await bySerial.save();
+      }
+      return res.json({ creature: bySerial, type: bySerial.type });
+    }
   }
   const type = findTypeByNfc(payload) || (getCatalogEntry(payload) ? payload : null);
   if (!type) return res.status(404).json({ error: 'Unknown card' });
@@ -62,6 +72,7 @@ r.post('/', ah(async (req, res) => {
     data,
     nickname: nickname || getCatalogEntry(type).name,
     nfcTagId,
+    active: !nfcTagId,
     position: { x: Math.random() * 0.8 + 0.1 },
   });
   await syncCreatureBill(await User.findById(req.userId), creature);

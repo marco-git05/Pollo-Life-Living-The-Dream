@@ -8,7 +8,8 @@
     "start": "node --env-file=.env src/index.js",
     "test:db": "node --env-file=.env scripts/test-db.js",
     "test:nessie": "node --env-file=.env scripts/test-nessie.js",
-    "seed": "node --env-file=.env scripts/seed-demo.js"
+    "seed": "node --env-file=.env scripts/seed-demo.js",
+    "seed:demos": "node --env-file=.env scripts/seed-demos.js"
   },
   "engines": { "node": ">=20.6" },
   "dependencies": {

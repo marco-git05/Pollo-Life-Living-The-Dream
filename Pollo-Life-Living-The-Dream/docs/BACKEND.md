@@ -19,6 +19,7 @@ listed below.
    npm run test:db          # ✔ write/read/delete OK
    npm run test:nessie      # ✔ Nessie key works
    npm run seed             # demo user: demo / demo1234
+   npm run seed:demos       # case studies: jack / jack1234, john / john1234
    npm run dev              # API on http://localhost:4000
    ```
    Check http://localhost:4000/api/health — it should say `db: connected`, `nessie: configured`.
@@ -33,6 +34,7 @@ the values privately, never in the repo.
 | `users` | login, age group, Nessie customer + account ids, cached bank snapshot, AI prefs, village settings | auth routes, bank sync, AI prefs (AI), village (front end) |
 | `creatures` | one per financial item; `type` + flexible `data` per `creatures/catalog.js`; NFC tag; linked Nessie bill; `mood`/`lastAdvice` | creature routes; mood/advice from AI |
 | `transactions` | every money event the app created in Nessie, linked to a creature | `POST /api/bank/transactions` |
+| `nfcscans` | normalized NFC payloads and scan metadata owned by a user | `POST /api/nfc` |
 
 ## API (all except register/login/catalog need `Authorization: Bearer <token>`)
 
@@ -52,6 +54,11 @@ the values privately, never in the repo.
 | PATCH / DELETE | `/api/creatures/:id` | update (merges `data`) / remove (also removes its Nessie bill) |
 | POST | `/api/creatures/scan` | `{ payload, serial }` from an NFC card → `{ creature \| null, type }` |
 
+When `nfcTagId` is supplied while registering a creature, the creature is
+created as pending and is excluded from the village until `/api/creatures/scan`
+receives the matching serial for that logged-in user. This allows the same
+physical tag to activate different creatures for different accounts.
+
 **Bank (Nessie)**
 | | | |
 |---|---|---|
@@ -62,6 +69,18 @@ the values privately, never in the repo.
 | GET | `/api/bank/transactions` | `?creatureId=&limit=` |
 
 `kind` is one of `purchase`, `deposit`, `withdrawal`, `bill_payment`, `transfer`.
+
+**NFC**
+| | | |
+|---|---|---|
+| GET | `/api/nfc?limit=50` | Recent scans, newest first; limit is capped at 100 |
+| POST | `/api/nfc` | `{ payload, serial?, source? }` → saved scan |
+| DELETE | `/api/nfc` | Clears the signed-in user's scan history |
+
+`source` is `bridge`, `manual`, or `web-nfc`. Android Chrome can read NDEF text tags directly through the web app's Web NFC
+reader and post the normalized payload to this endpoint. iPhone browsers do
+not expose Web NFC, so iPhone users should use the manual payload fallback
+until a native iOS reader is added.
 
 Snapshot shape:
 ```json
@@ -76,6 +95,17 @@ Snapshot shape:
 }
 ```
 `stale` only appears when Nessie was unreachable and the last cached copy was returned.
+
+## Case-study demo accounts
+
+Run `npm run seed:demos` to reset the two public demo accounts:
+
+| Account | Password | Scenario |
+|---|---|---|
+| `jack` | `jack1234` | Young adult: job, student loan, first credit card, emergency fund |
+| `john` | `john1234` | Working family: two incomes, kids' savings, emergency fund, family groceries |
+
+These are intentionally simple credentials for a demo environment only.
 
 ## For the AI / Nemotron teammate
 

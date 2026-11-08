@@ -13,6 +13,7 @@ const creatureSchema = new mongoose.Schema(
     data: { type: mongoose.Schema.Types.Mixed, default: {} },
 
     nfcTagId: { type: String, index: true }, // serial of the physical card that summons it
+    active: { type: Boolean, default: true, index: true },
 
     // Link to Nessie: which account it's tied to, and the Nessie bill id for recurring payments
     nessieAccountId: String,

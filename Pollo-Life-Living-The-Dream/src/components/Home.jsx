@@ -26,6 +26,7 @@ export default function Home({ onOpenMenu }) {
   const [selectedId, setSelectedId] = useState(null);
   const [scanPayload, setScanPayload] = useState(takeScanParam);
   const [adding, setAdding] = useState(Boolean(scanPayload));
+  const [registrationNotice, setRegistrationNotice] = useState('');
 
   const village = useMemo(() => creatures.map((c) => toVillageCreature(c, entry(c.type))), [creatures, entry]);
   const selected = creatures.find((c) => c._id === selectedId) ?? null;
@@ -54,6 +55,12 @@ export default function Home({ onOpenMenu }) {
   return (
     <>
       <Dashboard onSelectCreature={setSelectedId} onOpenMenu={onOpenMenu} />
+
+      {registrationNotice && (
+        <div className="notice" role="status">
+          {registrationNotice}
+        </div>
+      )}
 
       {status === 'error' && (
         <div className="notice warn creature-error" role="alert">
@@ -91,7 +98,8 @@ export default function Home({ onOpenMenu }) {
           }}
           onCreated={(c) => {
             closeAdd();
-            setSelectedId(c._id);
+            if (c.active) setSelectedId(c._id);
+            else setRegistrationNotice('Creature registered. Scan its NFC tag to let it move into the village.');
           }}
         />
       )}

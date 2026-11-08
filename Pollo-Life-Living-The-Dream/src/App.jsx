@@ -6,12 +6,13 @@ import Login from './components/Login';
 import Home from './components/Home';
 import AccountSettings from './components/AccountSettings';
 import SideMenu from './components/SideMenu';
+import NfcScanner from './components/NfcScanner';
 import CreaturesProvider from './creatures/CreaturesProvider';
 import './live-data.css';
 
 function AppShell() {
   const { user, logout } = useAuth();
-  const [view, setView] = useState('home'); // 'home' | 'account'
+  const [view, setView] = useState('home'); // 'home' | 'account' | 'nfc'
   const [menuOpen, setMenuOpen] = useState(false);
 
   const openMenu = () => setMenuOpen(true);
@@ -41,6 +42,8 @@ function AppShell() {
       <div className="app">
         {view === 'account' ? (
           <AccountSettings onBack={() => setView('home')} onOpenMenu={openMenu} onSignOut={signOut} />
+        ) : view === 'nfc' ? (
+          <NfcScanner onOpenMenu={openMenu} />
         ) : (
           <Home onOpenMenu={openMenu} />
         )}

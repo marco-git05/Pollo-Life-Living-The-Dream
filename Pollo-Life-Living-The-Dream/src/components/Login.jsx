@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 
 export default function Login() {
-  const { login, register, loginDemo } = useAuth();
+  const { login, register, loginDemo, loginCaseStudy } = useAuth();
   const [mode, setMode] = useState('signin'); // 'signin' | 'register'
   const [form, setForm] = useState({ displayName: '', username: '', password: '', ageGroup: 'young_adult' });
   const [error, setError] = useState('');
@@ -115,6 +115,15 @@ export default function Login() {
         <button type="button" className="secondary-btn" disabled={busy} onClick={() => run(loginDemo)}>
           Try the demo
         </button>
+        <div className="case-study-demos">
+          <p>Case study demos</p>
+          <button type="button" className="secondary-btn" disabled={busy} onClick={() => run(() => loginCaseStudy('jack', 'jack1234'))}>
+            Young adult · Jack
+          </button>
+          <button type="button" className="secondary-btn" disabled={busy} onClick={() => run(() => loginCaseStudy('john', 'john1234'))}>
+            Working family · John
+          </button>
+        </div>
       </div>
     </main>
   );

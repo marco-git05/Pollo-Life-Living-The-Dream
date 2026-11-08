@@ -5,6 +5,9 @@ import mongoose from 'mongoose';
  * mistakes in plain English instead of a stack trace.
  */
 export async function connectDB() {
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
+  if (mongoose.connection.readyState === 2) return mongoose.connection.asPromise();
+
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI is not set in server/.env');
   if (uri.includes('<password>') || uri.includes('<user>'))
