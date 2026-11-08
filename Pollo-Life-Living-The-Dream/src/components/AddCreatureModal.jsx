@@ -10,12 +10,14 @@ import { typeLabel } from '../creatures/viewModel';
 // `initialPayload` is a card payload from an NFC tag URL (?scan=creature:credit_card). It is checked with
 // POST /api/creatures/scan first: if that creature already lives in the village we offer to open it instead.
 export default function AddCreatureModal({ initialPayload, onClose, onOpenExisting, onCreated }) {
-  const { catalog, add, status, error: loadError } = useCreatures();
+  const { catalog, add, update, status, error: loadError } = useCreatures();
   const [type, setType] = useState('');
   const [nickname, setNickname] = useState('');
+  const [nfcTagId, setNfcTagId] = useState('');
   const [values, setValues] = useState({});
   const [existing, setExisting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [readingNfc, setReadingNfc] = useState(false);
   const [error, setError] = useState('');
   const started = useRef(false);
 
@@ -23,9 +25,9 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
   const { main, goal } = splitGoal(entry?.fields);
 
   const chooseType = useCallback(
-    (t) => {
+    (t, initialData = {}) => {
       setType(t);
-      setValues(initValues(catalog.find((c) => c.type === t), {}));
+      setValues(initValues(catalog.find((c) => c.type === t), initialData));
       setError('');
     },
     [catalog],
@@ -37,14 +39,45 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
     setBusy(true);
     scanCard(initialPayload)
       .then((res) => {
-        chooseType(res.type);
+        chooseType(res.type, res.creature?.data);
         setExisting(res.creature ?? null);
+        setNickname(res.creature?.nickname ?? '');
+        setNfcTagId(res.creature?.nfcTagId ?? '');
       })
       .catch((err) => setError(err.message || 'Could not read that card.'))
       .finally(() => setBusy(false));
   }, [initialPayload, catalog, chooseType]);
 
   const setValue = (key) => (v) => setValues((vals) => ({ ...vals, [key]: v }));
+
+  const readNfcSerial = async () => {
+    if (!('NDEFReader' in window)) {
+      setError('Web NFC is not available in this browser. Use Android Chrome or enter the serial manually.');
+      return;
+    }
+    try {
+      setError('');
+      setReadingNfc(true);
+      const reader = new window.NDEFReader();
+      reader.onreading = ({ serialNumber }) => {
+        if (!serialNumber) {
+          setError('The tag was detected, but this browser did not provide its serial number.');
+        } else {
+          setNfcTagId(serialNumber);
+          setError('');
+        }
+        setReadingNfc(false);
+      };
+      reader.onreadingerror = () => {
+        setError('The tag was detected, but its serial number could not be read. Try holding it against the phone again.');
+        setReadingNfc(false);
+      };
+      await reader.scan();
+    } catch (err) {
+      setError(err.message || 'Could not start NFC scanning.');
+      setReadingNfc(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -60,15 +93,23 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
     setBusy(true);
     setError('');
     try {
-      const created = await add({ type: entry.type, data: collectData(entry, values), nickname: nickname.trim() || undefined });
-      onCreated(created);
+      const body = {
+        type: entry.type,
+        data: collectData(entry, values),
+        nickname: nickname.trim() || undefined,
+        nfcTagId: nfcTagId.trim() || undefined,
+      };
+      const saved = existing && !existing.active
+        ? await update(existing._id, body)
+        : await add(body);
+      onCreated(saved);
     } catch (err) {
       setError(err.message || 'Could not save this creature.');
       setBusy(false);
     }
   };
 
-  if (existing) {
+  if (existing?.active) {
     return (
       <Modal title="Creature already here" onClose={onClose}>
         <div className="exists">
@@ -146,6 +187,24 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
             )}
 
             {goal && <IdField f={goal} prefix="new" value={values[goal.key] ?? ''} onChange={setValue(goal.key)} hint="(optional)" />}
+
+            <div className="id-field">
+              <span className="id-label">NFC serial <i>(optional)</i></span>
+              <div className="form-actions">
+                <button type="button" className="secondary-btn" onClick={readNfcSerial} disabled={readingNfc || busy}>
+                  {readingNfc ? 'Ready for a tag…' : 'Scan NFC tag'}
+                </button>
+              </div>
+              {readingNfc && <span className="meta" role="status">Web app is listening. Hold the NFC tag to the back of the phone.</span>}
+              <input
+                id="new-nfc-tag-id"
+                type="text"
+                value={nfcTagId}
+                onChange={(e) => setNfcTagId(e.target.value)}
+                placeholder="04:C4:72:E2:7B:1D:90"
+              />
+              <span className="meta">Scan the tag to fill this automatically, or enter its serial manually.</span>
+            </div>
 
             {error && (
               <p className="form-error" role="alert">

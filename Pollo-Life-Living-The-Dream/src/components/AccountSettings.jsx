@@ -5,6 +5,7 @@ import { snapshotToDashboard } from '../data/bankAdapter';
 import { fmt } from '../utils/finance';
 import { useAuth } from '../auth/useAuth';
 import { useBank } from '../bank/useBank';
+import { useCreatures } from '../creatures/useCreatures';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -12,10 +13,13 @@ const longDate = (iso) =>
 export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
   const { user } = useAuth();
   const { snapshot } = useBank();
+  const { creatures: userCreatures, remove } = useCreatures();
   const accounts = useMemo(() => (snapshot ? snapshotToDashboard(snapshot).accounts : []), [snapshot]);
 
   const [filter, setFilter] = useState('All');
   const [prefs, setPrefs] = useState({ reminders: true, weekly: false });
+  const [resetStatus, setResetStatus] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   // Still dummy: decisions on record (the backend's transactions collection can feed this next).
   const types = ['All', ...new Set(decisions.map((d) => d.type))];
@@ -23,6 +27,30 @@ export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
   const creatureName = (id) => creatures.find((c) => c.id === id)?.name;
 
   const togglePref = (key) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
+
+  const resetDemoCreature = async () => {
+    const resetType = user.username === 'jack' ? 'student_loan' : user.username === 'john' ? 'savings_goal' : null;
+    const resetName = user.username === 'jack' ? 'Student loan' : user.username === 'john' ? 'Kids savings' : null;
+    if (!resetType || !resetName) return;
+    if (!window.confirm(`Reset demo data by deleting ${resetName}? This will let you register it again.`)) return;
+
+    setResetting(true);
+    setResetStatus('');
+    try {
+      const matches = userCreatures.filter(
+        (creature) => creature.type === resetType && (user.username !== 'john' || creature.nickname === resetName),
+      );
+      await Promise.all(matches.map((creature) => remove(creature._id)));
+      setResetStatus(matches.length ? `${resetName} was deleted. You can register it again from the village.` : `No ${resetName} registration was found.`);
+    } catch (err) {
+      setResetStatus(err.message || 'Could not reset the demo creature.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const isDemoAccount = user.username === 'jack' || user.username === 'john';
+  const resetName = user.username === 'jack' ? 'Student loan' : 'Kids savings';
 
   return (
     <main className="account-page">
@@ -120,6 +148,20 @@ export default function AccountSettings({ onBack, onOpenMenu, onSignOut }) {
               <input type="checkbox" checked={prefs.weekly} onChange={() => togglePref('weekly')} />
             </label>
           </section>
+
+          {isDemoAccount && (
+            <section className="settings-section">
+              <h2>Demo reset</h2>
+              <p className="meta">
+                Delete the demo {resetName} registration so you can demonstrate adding and activating it again.
+                Other creatures and account data are unchanged.
+              </p>
+              <button type="button" className="action" onClick={resetDemoCreature} disabled={resetting}>
+                {resetting ? 'Resetting…' : 'Reset data'}
+              </button>
+              {resetStatus && <p className="meta" role="status">{resetStatus}</p>}
+            </section>
+          )}
 
           <section className="settings-section">
             <button type="button" className="action" onClick={onSignOut}>

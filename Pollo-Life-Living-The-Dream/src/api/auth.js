@@ -41,3 +41,7 @@ export async function register({ username, password, displayName, ageGroup }) {
 export function loginDemo() {
   return login({ username: 'demo', password: 'demo1234' });
 }
+
+export function loginCaseStudy(username, password) {
+  return login({ username, password });
+}

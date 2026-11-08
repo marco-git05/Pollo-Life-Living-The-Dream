@@ -871,6 +871,106 @@ button {
   padding: 12px 18px 28px;
 }
 
+.nfc-page {
+  min-height: 100%;
+  overflow-y: auto;
+  background: var(--cream);
+  padding: 18px;
+}
+
+.nfc-inner {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.nfc-card {
+  margin-top: 14px;
+}
+
+.nfc-match {
+  margin-top: 14px;
+}
+
+.nfc-match h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-head);
+}
+
+.nfc-match .creature-card {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-height: none;
+}
+
+.nfc-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.nfc-form label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.nfc-form input,
+.nfc-form textarea {
+  width: 100%;
+  border: 2px solid var(--umber);
+  border-radius: 8px;
+  padding: 8px;
+  background: white;
+  font: inherit;
+}
+
+.nfc-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.nfc-live-status,
+.nfc-success {
+  margin: 10px 0 0;
+  font-weight: 600;
+}
+
+.nfc-live-status {
+  color: var(--umber-soft);
+}
+
+.nfc-success {
+  color: var(--good);
+}
+
+.nfc-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nfc-history {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.nfc-history li {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--custard);
+  border-radius: 8px;
+}
+
+.nfc-history time,
+.nfc-history code {
+  overflow-wrap: anywhere;
+}
+
 .account-inner {
   max-width: 900px;
   margin: 0 auto;
@@ -1209,6 +1309,18 @@ button {
   margin: 14px 0;
   color: var(--umber-soft);
   font-size: 12px;
+}
+
+.case-study-demos {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.case-study-demos p {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
 }
 
 .login-divider::before,

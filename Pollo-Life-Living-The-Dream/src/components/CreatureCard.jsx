@@ -15,6 +15,7 @@ const FEED = {
   income: { kind: 'deposit', label: 'Record a paycheck', description: 'Paycheck', amountKey: 'amount' },
   subscription: { kind: 'bill_payment', label: 'Pay this month', description: 'Subscription payment', amountKey: 'cost' },
   credit_card: { kind: 'bill_payment', label: 'Make a payment', description: 'Credit card payment', amountKey: 'minPayment' },
+  student_loan: { kind: 'bill_payment', label: 'Make a payment', description: 'Student loan payment', amountKey: 'minPayment' },
 };
 
 function FeedForm({ creature, onDone }) {

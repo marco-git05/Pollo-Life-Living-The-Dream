@@ -2,7 +2,8 @@ import { getToken } from '../auth/session';
 
 // In dev, Vite proxies /api to the backend (see vite.config.js).
 // For a deployed build, set VITE_API_URL (e.g. https://my-api.example.com).
-const BASE = import.meta.env.VITE_API_URL ?? '';
+const PRODUCTION_API = 'https://pollo-life-api.vercel.app';
+const BASE = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '' : PRODUCTION_API);
 
 export class ApiError extends Error {
   constructor(message, status) {
