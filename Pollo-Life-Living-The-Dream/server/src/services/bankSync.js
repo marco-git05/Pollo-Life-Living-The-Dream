@@ -140,23 +140,31 @@ async function buildSnapshot(customerId) {
   const accounts = await Nessie.getAccounts(customerId);
   const detailed = await Promise.all(
     accounts.map(async (a) => {
-      const [purchases, deposits, withdrawals, bills] = await Promise.all([
-        Nessie.getPurchases(a._id).catch(() => []),
-        Nessie.getDeposits(a._id).catch(() => []),
-        Nessie.getWithdrawals(a._id).catch(() => []),
+      const [feed, bills] = await Promise.all([
+        Nessie.getTransactions(a._id).catch(() => []),
         Nessie.getBills(a._id).catch(() => []),
       ]);
-      const tx = [
-        ...purchases.map((p) => ({ kind: 'purchase', amount: p.amount, date: p.purchase_date, description: p.description })),
-        ...deposits.map((d) => ({ kind: 'deposit', amount: d.amount, date: d.transaction_date, description: d.description })),
-        ...withdrawals.map((w) => ({ kind: 'withdrawal', amount: w.amount, date: w.transaction_date, description: w.description })),
-      ].sort((x, y) => String(y.date).localeCompare(String(x.date)));
+      // v2 returns one feed; money coming in counts as "deposit" for the dashboard math below.
+      // A transfer is incoming when this account is the payee.
+      const incoming = (t) => ['deposit', 'refund', 'interest_credit'].includes(t.kind) || (t.kind === 'transfer' && t.payee_id === a._id);
+      const tx = feed
+        .filter((t) => !['declined', 'cancelled'].includes(t.status))
+        .map((t) => ({ kind: incoming(t) ? 'deposit' : t.kind, amount: t.amount, date: t.date, description: t.description }))
+        .sort((x, y) => String(y.date).localeCompare(String(x.date)));
+
+      // Nessie v2 only moves `balance` once a transaction settles. Fold pending ones in so the
+      // dashboard reacts right away (for a card, spending raises the balance owed).
+      const pending = feed.filter((t) => t.status === 'pending');
+      const pendingIn = pending.filter(incoming).reduce((s, t) => s + t.amount, 0);
+      const pendingOut = pending.filter((t) => !incoming(t)).reduce((s, t) => s + t.amount, 0);
+      const balance = round((a.balance || 0) + (a.type === 'Credit Card' ? pendingOut - pendingIn : pendingIn - pendingOut));
 
       return {
         id: a._id,
         type: a.type,
         nickname: a.nickname,
-        balance: a.balance,
+        balance,
+        pendingCount: pending.length,
         recent: tx.slice(0, 15),
         bills: bills.map((b) => ({
           id: b._id,
