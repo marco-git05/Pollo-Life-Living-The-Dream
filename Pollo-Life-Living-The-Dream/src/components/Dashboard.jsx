@@ -10,9 +10,10 @@ import PriorityList from './PriorityList';
 import TipsCard from './TipsCard';
 import GearButton from './GearButton';
 import ConnectBank from './ConnectBank';
-// Still sample data: news (SerpAPI) and tips (Nemotron). Everything else is live.
-import { news, tips } from '../data/dummyData';
+// Still sample data: tips (Nemotron). News falls back to samples if SerpApi is unavailable.
+import { news as sampleNews, tips } from '../data/dummyData';
 import { getTransactions } from '../api/bank';
+import { getNews } from '../api/news';
 import { useCreatures } from '../creatures/useCreatures';
 import { typeLabel } from '../creatures/viewModel';
 import { snapshotToDashboard } from '../data/bankAdapter';
@@ -21,6 +22,21 @@ import { useAuth } from '../auth/useAuth';
 import { useBank } from '../bank/useBank';
 
 const Sample = () => <span className="badge ok">Sample</span>;
+
+// Live headlines from /api/news (SerpApi). Falls back to the sample list on any error.
+function useNews() {
+  const [news, setNews] = useState({ items: sampleNews, live: false });
+  useEffect(() => {
+    let cancelled = false;
+    getNews({ limit: 5 })
+      .then((d) => !cancelled && d?.items?.length && setNews({ items: d.items, live: true }))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return news;
+}
 
 // Spending this month by category, from the user's recorded transactions (purchases and bill payments).
 function useSpending(syncedAt) {
@@ -87,6 +103,7 @@ function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
     [extra, forecastSetup, monthlyNet],
   );
   const loan = loanFrom(loanCreature);
+  const news = useNews();
 
   return (
     <>
@@ -105,8 +122,8 @@ function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
           <HealthIndicators health={health} />
         </Card>
 
-        <Card title="News recently" area="news" right={<Sample />}>
-          <NewsCard items={news} />
+        <Card title="News recently" area="news" right={news.live ? null : <Sample />}>
+          <NewsCard items={news.items} />
         </Card>
 
         <Card title="Priority list" area="priority">

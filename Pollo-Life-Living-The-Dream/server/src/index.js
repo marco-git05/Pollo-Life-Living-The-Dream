@@ -6,6 +6,8 @@ import { nessieConfigured } from './services/nessie.js';
 import authRoutes from './routes/auth.js';
 import creatureRoutes from './routes/creatures.js';
 import bankRoutes from './routes/bank.js';
+import newsRoutes from './routes/news.js';
+import { newsConfigured } from './services/news.js';
 // AI teammate: add `import aiRoutes from './routes/ai.js';` and mount it below
 
 const app = express();
@@ -17,12 +19,14 @@ app.get('/api/health', (_req, res) =>
     ok: true,
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     nessie: nessieConfigured() ? 'configured' : 'missing key',
+    news: newsConfigured() ? 'configured' : 'missing key',
   })
 );
 
 app.use('/api/auth', authRoutes);
 app.use('/api/creatures', creatureRoutes);
 app.use('/api/bank', bankRoutes);
+app.use('/api/news', newsRoutes);
 // app.use('/api/ai', aiRoutes);
 
 app.use((req, res) => res.status(404).json({ error: `No route ${req.method} ${req.path}` }));
