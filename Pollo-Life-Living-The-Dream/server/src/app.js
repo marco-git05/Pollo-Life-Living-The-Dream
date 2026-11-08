@@ -7,6 +7,7 @@ import creatureRoutes from './routes/creatures.js';
 import bankRoutes from './routes/bank.js';
 import newsRoutes from './routes/news.js';
 import nfcRoutes from './routes/nfc.js';
+import chatRoutes from './routes/chat.js';
 import { newsConfigured } from './services/news.js';
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/creatures', creatureRoutes);
 app.use('/api/bank', bankRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/nfc', nfcRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use((req, res) => res.status(404).json({ error: `No route ${req.method} ${req.path}` }));
 

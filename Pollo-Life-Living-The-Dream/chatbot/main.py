@@ -19,7 +19,7 @@ app.add_middleware(
 # Option A: NVIDIA NIM Cloud API
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
-    api_key=os.environ.get("NVIDIA_API_KEY", "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"),
+    api_key=os.environ["NVIDIA_API_KEY"],
 )
 MODEL_NAME = "nvidia/nemotron-3.5-bolt-e4b"
 

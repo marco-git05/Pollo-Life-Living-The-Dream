@@ -8,6 +8,7 @@ import WhatIf from './WhatIf';
 import NewsCard from './NewsCard';
 import PriorityList from './PriorityList';
 import TipsCard from './TipsCard';
+import ChatbotCard from './ChatbotCard';
 import GearButton from './GearButton';
 import ConnectBank from './ConnectBank';
 // Still sample data: tips (Nemotron). News falls back to samples if SerpApi is unavailable.
@@ -162,6 +163,8 @@ function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
         <Card title="Finance tips" area="tips" right={<Sample />}>
           <TipsCard tips={tips} />
         </Card>
+
+        <ChatbotCard data={data} />
       </div>
     </>
   );
