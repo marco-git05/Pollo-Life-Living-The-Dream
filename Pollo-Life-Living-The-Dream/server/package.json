@@ -1,0 +1,21 @@
+{
+  "name": "finvillage-server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "test:db": "node --env-file=.env scripts/test-db.js",
+    "test:nessie": "node --env-file=.env scripts/test-nessie.js",
+    "seed": "node --env-file=.env scripts/seed-demo.js"
+  },
+  "engines": { "node": ">=20.6" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.0"
+  }
+}
