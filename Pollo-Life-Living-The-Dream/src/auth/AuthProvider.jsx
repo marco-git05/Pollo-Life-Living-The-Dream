@@ -1,32 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AuthContext } from './context';
+import { loadSession, saveSession } from './session';
 import * as api from '../api/auth';
 
-const KEY = 'finance-village-session';
-
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function save(session) {
-  try {
-    if (session) localStorage.setItem(KEY, JSON.stringify(session));
-    else localStorage.removeItem(KEY);
-  } catch {
-  }
-}
-
 export default function AuthProvider({ children }) {
-  const [session, setSession] = useState(load);
+  const [session, setSession] = useState(loadSession);
+
+  // client.js fires this when the backend answers 401 to a logged-in request (expired token).
+  useEffect(() => {
+    const onUnauthorized = () => {
+      saveSession(null);
+      setSession(null);
+    };
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+  }, []);
 
   const value = useMemo(() => {
     const finish = (s) => {
-      save(s);
+      saveSession(s);
       setSession(s);
       return s;
     };

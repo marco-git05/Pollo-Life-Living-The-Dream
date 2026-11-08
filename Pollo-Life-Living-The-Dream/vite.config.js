@@ -4,7 +4,10 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { '/api': 'http://localhost:4000' } },
+  server: {
+    // Forward /api calls to the Express backend (server/, port 4000) so there are no CORS issues.
+    proxy: { '/api': 'http://localhost:4000' },
+  },
 })
 
 
