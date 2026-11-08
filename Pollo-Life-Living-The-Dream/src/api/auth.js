@@ -22,7 +22,7 @@ export async function login({ email, password }) {
   const e = email.trim();
   if (!EMAIL.test(e)) throw new Error('Enter a valid email address.');
   if (!password) throw new Error('Enter your password.');
-  // Dummy rule: any valid email + any password works.
+  // dummy rule: any valid email + any password works.
   const name = nameFromEmail(e);
   return { token: 'dummy-token', user: { name, fullName: name, email: e, memberSince: today() } };
 }
