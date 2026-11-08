@@ -17,6 +17,7 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
   const [values, setValues] = useState({});
   const [existing, setExisting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [readingNfc, setReadingNfc] = useState(false);
   const [error, setError] = useState('');
   const started = useRef(false);
 
@@ -56,17 +57,25 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
     }
     try {
       setError('');
-      setBusy(true);
+      setReadingNfc(true);
       const reader = new window.NDEFReader();
-      await reader.scan();
       reader.onreading = ({ serialNumber }) => {
-        if (!serialNumber) setError('The tag was detected, but this browser did not provide its serial number.');
-        else setNfcTagId(serialNumber);
-        setBusy(false);
+        if (!serialNumber) {
+          setError('The tag was detected, but this browser did not provide its serial number.');
+        } else {
+          setNfcTagId(serialNumber);
+          setError('');
+        }
+        setReadingNfc(false);
       };
+      reader.onreadingerror = () => {
+        setError('The tag was detected, but its serial number could not be read. Try holding it against the phone again.');
+        setReadingNfc(false);
+      };
+      await reader.scan();
     } catch (err) {
       setError(err.message || 'Could not start NFC scanning.');
-      setBusy(false);
+      setReadingNfc(false);
     }
   };
 
@@ -182,10 +191,11 @@ export default function AddCreatureModal({ initialPayload, onClose, onOpenExisti
             <div className="id-field">
               <span className="id-label">NFC serial <i>(optional)</i></span>
               <div className="form-actions">
-                <button type="button" className="secondary-btn" onClick={readNfcSerial} disabled={busy}>
-                  {busy ? 'Ready for a tag…' : 'Scan NFC tag'}
+                <button type="button" className="secondary-btn" onClick={readNfcSerial} disabled={readingNfc || busy}>
+                  {readingNfc ? 'Ready for a tag…' : 'Scan NFC tag'}
                 </button>
               </div>
+              {readingNfc && <span className="meta" role="status">Web app is listening. Hold the NFC tag to the back of the phone.</span>}
               <input
                 id="new-nfc-tag-id"
                 type="text"
