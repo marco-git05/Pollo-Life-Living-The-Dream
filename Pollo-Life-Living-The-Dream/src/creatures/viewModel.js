@@ -10,6 +10,7 @@ export const MOOD_TONE = { happy: 'good', ok: 'ok', worried: 'warn', sad: 'warn'
 // Fallback shapes, only drawn if a sprite file fails to load.
 const SHAPES = {
   credit_card: 'triangle',
+  student_loan: 'triangle',
   income: 'circle',
   subscription: 'hexagon',
 };
@@ -46,6 +47,7 @@ export function formatField(field, value) {
 export function summaryFor(type, data = {}) {
   switch (type) {
     case 'credit_card':
+    case 'student_loan':
       return `${money(data.balance)} balance`;
     case 'income':
       return `${money(data.amount)} · ${data.frequency ?? 'per paycheck'}`;

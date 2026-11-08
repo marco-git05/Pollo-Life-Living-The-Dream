@@ -154,7 +154,7 @@ function DashboardBody({ data, spending, loanCreature, onSelectCreature }) {
             />
           ) : (
             <p className="meta">
-              Add a credit card creature (with balance, APR and minimum payment) to try extra payments.
+              Add a credit card or student loan creature (with balance, interest rate and minimum payment) to try extra payments.
             </p>
           )}
         </Card>
@@ -173,7 +173,7 @@ export default function Dashboard({ onSelectCreature, onOpenMenu }) {
   const { creatures } = useCreatures();
   const data = useMemo(() => (snapshot ? snapshotToDashboard(snapshot, creatures) : null), [snapshot, creatures]);
   const spending = useSpending(snapshot?.syncedAt);
-  const loanCreature = creatures.find((c) => c.type === 'credit_card');
+  const loanCreature = creatures.find((c) => c.type === 'student_loan') ?? creatures.find((c) => c.type === 'credit_card');
 
   let body;
   if (status === 'loading') {
